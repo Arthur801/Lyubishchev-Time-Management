@@ -116,6 +116,9 @@ public sealed class TimerService(AppDbContext dbContext, IClock clock)
             timeEntry.StartTimeUtc,
             timeEntry.EndTimeUtc,
             timeEntry.CategoryId,
+            CategoryName: null,
+            CategoryColor: null,
+            Tags: [],
             (long)(timeEntry.EndTimeUtc - timeEntry.StartTimeUtc).TotalSeconds));
     }
 }

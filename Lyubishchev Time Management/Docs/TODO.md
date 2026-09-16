@@ -1,6 +1,6 @@
 # TODO List
 
-依照 `AGENTS.md` / `Docs/system_design_document.md` 的 Implementation Order 整理，最後更新於 2026-09-17。JWT Cookie 驗證流程已於 `feat/jwt-cookie-auth-flow` 分支完成並合併進 `main`，細節請見 [`Docs/JWT.md`](JWT.md)。Login/Register rate limiting 與 auth failure 記錄已完成，細節請見 [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md)。RunningTimer Start/Stop 核心計時功能已完成，細節請見 [`Docs/RunningTimerStartStop.md`](RunningTimerStartStop.md)。
+依照 `AGENTS.md` / `Docs/system_design_document.md` 的 Implementation Order 整理，最後更新於 2026-09-17。JWT Cookie 驗證流程已於 `feat/jwt-cookie-auth-flow` 分支完成並合併進 `main`，細節請見 [`Docs/JWT.md`](JWT.md)。Login/Register rate limiting 與 auth failure 記錄已完成，細節請見 [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md)。RunningTimer Start/Stop 核心計時功能已完成，細節請見 [`Docs/RunningTimerStartStop.md`](RunningTimerStartStop.md)。Manual TimeEntry CRUD（含 Category 指派、Tag inline 建立、History List 前端）已完成，細節請見 [`Docs/TimeEntryCrud.md`](TimeEntryCrud.md)。
 
 狀態標記：`[x]` 完成、`[~]` 部分完成、`[ ]` 未開始
 
@@ -29,23 +29,26 @@
 - 詳細實作說明見 [`Docs/RunningTimerStartStop.md`](RunningTimerStartStop.md)
 
 ## 4. Manual TimeEntry CRUD
-- [ ] `Services/TimeEntryService.cs`（空殼）
-- [ ] `Controllers/Api/TimeEntryApiController.cs`（空殼，`/api/time-entries` 系列 endpoint 均未實作）
-- [x] `Controllers/TimeEntryController.cs` + `Views/TimeEntry/Index.cshtml`（List View 頁面殼已完成，但目前顯示的是前端寫死的 mock data，非真實資料庫資料）
+- [x] `Services/TimeEntryService.cs`（`ListAsync`/`CreateAsync`/`UpdateAsync`/`DeleteAsync`/`GetCategoryOptionsAsync`，含 Category 擁有權驗證、Tag inline find-or-create 併發處理）
+- [x] `Controllers/Api/TimeEntryApiController.cs`（`GET`/`POST`/`PATCH {id}`/`DELETE {id}` `/api/time-entries`，`[Authorize]` + CSRF；`export` 不在此範圍，見第 13 項）
+- [x] `Controllers/TimeEntryController.cs` + `Views/TimeEntry/Index.cshtml`（History List 已串接真實 API，含新增/編輯表單、分頁、分類/搜尋篩選，取代原本的前端 mock data）
+- 詳細實作說明見 [`Docs/TimeEntryCrud.md`](TimeEntryCrud.md)
 
 ## 5. Category
-- [ ] `Services/CategoryService.cs`（空殼）
+- [ ] `Services/CategoryService.cs`（空殼，尚無獨立的 Category CRUD 服務）
 - [ ] `Controllers/CategoryController.cs`（空殼，無 View）
 - [ ] `Controllers/Api/CategoryApiController.cs`（空殼，`/api/categories` 系列均未實作）
+- [~] `TimeEntryService.GetOwnedCategoryAsync`/`GetCategoryOptionsAsync` 已提供「讀取現有分類」與「驗證 TimeEntry 指定的 CategoryId 屬於目前使用者」，供 Manual TimeEntry CRUD 使用；但建立/改名/刪除分類的完整管理頁面與 API 仍未開始
 
 ## 6. Tag + TimeEntryTag
-- [ ] `Services/TagService.cs`（空殼）
+- [ ] `Services/TagService.cs`（空殼，尚無獨立的 Tag 管理服務）
 - [ ] `Controllers/TagController.cs`（空殼，無 View）
 - [ ] `Controllers/Api/TagApiController.cs`（空殼，`/api/tags` 系列均未實作）
+- [~] `TimeEntryService.FindOrCreateTagsAsync` 已提供「編輯/新增 TimeEntry 時 inline 建立/重用標籤」（含併發處理），符合 `AGENTS.md` Tag 規則；但獨立的標籤管理頁面（改名、刪除）與 API 仍未開始
 
 ## 7. History List
-- [x] List View 頁面（`Views/TimeEntry/Index.cshtml`、`history.css`、`time-entry.js`）已完成，目前為 mock data 前端原型
-- [ ] 串接真實 API/資料庫、分頁（建議 50 筆/頁）、編輯/刪除功能落地
+- [x] List View 頁面（`Views/TimeEntry/Index.cshtml`、`history.css`、`time-entry.js`）已串接真實 API，含分頁（50 筆/頁）、日期範圍/分類/搜尋篩選、新增/編輯表單、刪除，取代原本的 mock data 原型
+- 詳細實作說明見 [`Docs/TimeEntryCrud.md`](TimeEntryCrud.md)
 
 ## 8. Calendar View
 - [ ] 尚未開始（Controller/View/JS 皆無）
@@ -94,10 +97,10 @@
 ---
 
 ## 測試（AGENTS.md Testing Priorities）
-- [~] C# Unit Tests：Timer state 已隨 `TimerFlow.Tests` 一併覆蓋；duration、overlap、interval intersection、cross-midnight、timezone conversion、Category/Tag aggregation 待 `TimeAggregationService`（第 9 項）實作後補上
+- [~] C# Unit Tests：Timer state（`TimerFlow.Tests`）、duration/overlap（`TimeEntryFlow.Tests`）已覆蓋；interval intersection 的跨午夜情境已隨 `ListAsync` 的邊界測試覆蓋；timezone conversion、Category/Tag aggregation 待 `TimeAggregationService`（第 9 項）實作後補上
 - [x] Integration Tests：Register/Login 已完成（`Tests/AuthFlow.Tests`，12 個測試：`ReturnUrlPolicyTests` 7 個 + `AuthServiceTests` 5 個，使用 EF Core InMemory）
 - [x] Integration Tests：Start/Stop Timer、並發 Stop 已完成（`Tests/TimerFlow.Tests`，7 個測試，使用 SQLite in-memory；細節見 [`Docs/RunningTimerStartStop.md`](RunningTimerStartStop.md)）
-- [ ] Integration Tests：TimeEntry CRUD、Category 刪除 SET NULL、Tag 刪除只移除關聯、跨使用者存取拒絕 — 尚未開始
+- [x] Integration Tests：TimeEntry CRUD、Category 刪除 SET NULL、Tag 刪除只移除關聯、跨使用者存取拒絕已完成（`Tests/TimeEntryFlow.Tests`，16 個測試，使用 SQLite in-memory；細節見 [`Docs/TimeEntryCrud.md`](TimeEntryCrud.md)）
 
 ---
 
@@ -107,10 +110,11 @@
 - JWT Cookie 驗證流程（Register/Login/Logout + `[Authorize]` 頁面保護 + CSRF），詳見 [`Docs/JWT.md`](JWT.md)
 - Login/Register rate limiting（同 IP 5 分鐘 10 次）與 auth 事件記錄（`IAuthEventLogger`），詳見 [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md)
 - RunningTimer Start/Stop 核心計時功能（含單一交易的 Stop 流程、並發 Stop 只建立一筆 TimeEntry、Dashboard 計時卡片已串接真實 API），詳見 [`Docs/RunningTimerStartStop.md`](RunningTimerStartStop.md)
-- 頁面殼：Login、Register、Dashboard、TimeEntry List（前端原型，Dashboard/TimeEntry 已受 `[Authorize]` 保護；Dashboard 的計時器已是真實資料，其餘統計卡片/圖表仍是 mock data，尚未串接真實後端資料）
+- Manual TimeEntry CRUD（Create/Update/Delete/List，含分頁、日期範圍 overlap 篩選、Category 擁有權驗證、Tag inline find-or-create 併發處理），History List 頁面已完全串接真實 API 並新增建立/編輯表單，詳見 [`Docs/TimeEntryCrud.md`](TimeEntryCrud.md)
+- 頁面殼：Login、Register、Dashboard、TimeEntry List（Dashboard/TimeEntry 已受 `[Authorize]` 保護；Dashboard 的計時器與 TimeEntry History 皆已是真實資料，Dashboard 其餘統計卡片/圖表仍是 mock data，尚未串接真實後端資料）
 - Secrets 管理：連線字串、JWT 簽章金鑰皆使用 `dotnet user-secrets`，未提交至 Git
 
 ## 下一步建議優先順序
-1. Manual TimeEntry CRUD + `TimeAggregationService`（讓 Dashboard/History 串接真實資料，取代 mock data）
-2. Category、Tag + TimeEntryTag（讓計時器 Stop 之後可以補上分類與標籤）
+1. Category、Tag 完整管理頁面（建立/改名/刪除，`CategoryService`/`TagService` + 對應 API 與 View）
+2. `TimeAggregationService` + Dashboard/Report（讓 Dashboard 的統計卡片/圖表串接真實資料，取代 mock data）
 3. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）

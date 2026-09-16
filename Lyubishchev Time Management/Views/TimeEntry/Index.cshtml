@@ -1,3 +1,4 @@
+@model Lyubishchev_Time_Management.Models.ViewModels.HistoryViewModel
 @{
     ViewData["Title"] = "歷史紀錄";
 }
@@ -29,6 +30,7 @@
     <main class="dashboard-content history-content" id="history-content">
         <header class="page-heading">
             <div><p class="eyebrow">歷史紀錄</p><h1>回顧你走過的每一段時間。</h1><p id="history-count">載入中…</p></div>
+            <button class="outline-button" type="button" id="add-entry">+ 新增紀錄</button>
         </header>
 
         <section class="filter-bar" aria-label="篩選紀錄">
@@ -41,6 +43,10 @@
             <label class="filter-field">分類
                 <select id="filter-category">
                     <option value="">全部分類</option>
+                    @foreach (var category in Model.Categories)
+                    {
+                        <option value="@category.Id">@category.Name</option>
+                    }
                 </select>
             </label>
             <label class="filter-field filter-field--search">搜尋
@@ -51,6 +57,12 @@
         <section class="entry-groups" id="entry-groups" aria-live="polite"></section>
 
         <p class="empty-state" id="empty-state" hidden>這個範圍內還沒有任何紀錄。</p>
+
+        <nav class="pagination" id="pagination" aria-label="分頁" hidden>
+            <button class="outline-button" type="button" id="pagination-prev">上一頁</button>
+            <span id="pagination-label"></span>
+            <button class="outline-button" type="button" id="pagination-next">下一頁</button>
+        </nav>
     </main>
 
     <nav class="mobile-nav" aria-label="行動裝置主要導覽">
@@ -59,6 +71,45 @@
         <a class="mobile-nav__link" href="#">▥<span>報表</span></a>
         <a class="mobile-nav__link" href="#">⚙<span>設定</span></a>
     </nav>
+
+    <dialog class="entry-modal" id="entry-modal">
+        <form class="entry-modal__panel" id="entry-form">
+            <h2 id="entry-modal-title">新增紀錄</h2>
+            <label>活動名稱
+                <input id="entry-name" type="text" maxlength="500">
+            </label>
+            <div class="entry-modal__time-fields">
+                <label>開始時間
+                    <input id="entry-start" type="datetime-local" required>
+                </label>
+                <label>結束時間
+                    <input id="entry-end" type="datetime-local" required>
+                </label>
+            </div>
+            <label>分類
+                <select id="entry-category">
+                    <option value="">未分類</option>
+                    @foreach (var category in Model.Categories)
+                    {
+                        <option value="@category.Id" data-color="@category.Color">@category.Name</option>
+                    }
+                </select>
+            </label>
+            <div class="tag-editor">
+                <span class="field-label">標籤</span>
+                <div id="entry-tags" class="tag-list" aria-label="目前標籤"></div>
+                <div class="add-tag">
+                    <input id="entry-tag-input" type="text" maxlength="100" placeholder="新增標籤">
+                    <button id="entry-tag-add" type="button">加入</button>
+                </div>
+            </div>
+            <p class="form-message" id="entry-modal-error" aria-live="polite"></p>
+            <div class="entry-modal__actions">
+                <button class="outline-button" type="button" id="entry-modal-cancel">取消</button>
+                <button class="timer-toggle" type="submit" id="entry-modal-save">儲存</button>
+            </div>
+        </form>
+    </dialog>
 </div>
 
 @section Scripts {

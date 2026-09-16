@@ -6,4 +6,7 @@ public sealed record TimeEntryResponse(
     DateTime StartTimeUtc,
     DateTime EndTimeUtc,
     ulong? CategoryId,
+    string? CategoryName,
+    string? CategoryColor,
+    IReadOnlyList<string> Tags,
     long DurationSeconds);

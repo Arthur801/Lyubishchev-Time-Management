@@ -20,7 +20,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Tests\**\*.cs" />
+    <!--
+      Exclude the whole Tests folder from every SDK-implicit glob, not just *.cs. The test
+      projects live under this project's directory and each has its own bin/obj containing a
+      copy of this project's build output (via ProjectReference); without these excludes, the Web
+      SDK's implicit Content/None "**" globs sweep those nested bin/obj folders in as this
+      project's own content, and each successive build re-copies that content into bin/obj again,
+      nesting deeper every time.
+    -->
+    <Compile Remove="Tests\**" />
+    <Content Remove="Tests\**" />
+    <None Remove="Tests\**" />
   </ItemGroup>
 
 </Project>
