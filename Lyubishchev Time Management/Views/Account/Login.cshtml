@@ -1,0 +1,43 @@
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "登入";
+}
+
+<section class="login-shell" aria-labelledby="login-heading">
+    <div class="login-card">
+        <a asp-controller="Home" asp-action="Index" class="brand" aria-label="LTM 首頁">
+            <span class="brand__mark">LTM</span>
+            <span class="brand__name">TIME LOG</span>
+        </a>
+
+        <header class="login-card__header">
+            <h1 id="login-heading">歡迎回來</h1>
+            <p>登入後，繼續如實記錄你的時間。</p>
+        </header>
+
+        <div id="login-alert" class="form-alert" role="alert" hidden></div>
+
+        <form id="login-form" class="login-form" novalidate>
+            <div class="form-group">
+                <label for="email">電子郵件</label>
+                <input id="email" type="email" autocomplete="email" required aria-describedby="email-error" />
+                <p id="email-error" class="field-error" aria-live="polite"></p>
+            </div>
+
+            <div class="form-group">
+                <label for="password">密碼</label>
+                <div class="password-field">
+                    <input id="password" type="password" autocomplete="current-password" required aria-describedby="password-error" />
+                    <button id="password-toggle" class="password-toggle" type="button" aria-label="顯示密碼" aria-pressed="false">顯示</button>
+                </div>
+                <p id="password-error" class="field-error" aria-live="polite"></p>
+            </div>
+
+            <button id="login-submit" class="login-submit" type="submit">登入</button>
+        </form>
+
+        <p class="register-prompt">還沒有帳號？ <a href="/Account/Register" aria-label="前往註冊">立即註冊</a></p>
+    </div>
+
+    <footer class="auth-footer">© 2026 LTM · 私人時間紀錄</footer>
+</section>
