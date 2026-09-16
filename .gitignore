@@ -5,6 +5,7 @@
 # Visual Studio and IDE state
 .vs/
 .idea/
+.worktrees/
 *.user
 *.suo
 
