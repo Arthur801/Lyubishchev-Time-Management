@@ -1,5 +1,7 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Lyubishchev_Time_Management.Data;
+using Lyubishchev_Time_Management.Infrastructure.Logging;
 using Lyubishchev_Time_Management.Security;
 using Lyubishchev_Time_Management.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -32,10 +34,41 @@ if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.AddSingleton<JwtTokenService>();
+builder.Services.AddSingleton<IAuthEventLogger, AuthEventLogger>();
 builder.Services.AddScoped<CurrentUserService>();
 builder.Services.AddScoped<AuthService>();
 
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Basic brute-force protection for Login/Register: 10 attempts per IP per 5-minute window.
+    options.AddPolicy(RateLimiterPolicies.Auth, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(5),
+                QueueLimit = 0,
+            }));
+
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        var authEventLogger = context.HttpContext.RequestServices.GetRequiredService<IAuthEventLogger>();
+        authEventLogger.RateLimitExceeded(context.HttpContext.Request.Path.Value ?? "unknown", context.HttpContext.Connection.RemoteIpAddress?.ToString());
+
+        context.HttpContext.Response.ContentType = "application/problem+json";
+        await context.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            title = "TOO_MANY_REQUESTS",
+            status = StatusCodes.Status429TooManyRequests,
+            detail = "請求過於頻繁，請稍後再試。",
+        }, cancellationToken);
+    };
+});
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -91,6 +124,8 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseRouting();
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

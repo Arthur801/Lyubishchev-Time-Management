@@ -3,6 +3,7 @@ using Lyubishchev_Time_Management.Security;
 using Lyubishchev_Time_Management.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Lyubishchev_Time_Management.Controllers;
 
@@ -22,6 +23,7 @@ public sealed class AccountController(AuthService authService) : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting(RateLimiterPolicies.Auth)]
     public async Task<IActionResult> Login([FromBody] LoginRequest request, [FromQuery] string? returnUrl, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
@@ -29,7 +31,7 @@ public sealed class AccountController(AuthService authService) : Controller
             return ValidationProblem(ModelState);
         }
 
-        var result = await authService.LoginAsync(request.Email, request.Password, cancellationToken);
+        var result = await authService.LoginAsync(request.Email, request.Password, HttpContext.Connection.RemoteIpAddress?.ToString(), cancellationToken);
         if (!result.Succeeded)
         {
             return Problem(detail: result.ErrorMessage, statusCode: StatusCodes.Status401Unauthorized, title: result.ErrorCode);
@@ -43,6 +45,7 @@ public sealed class AccountController(AuthService authService) : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting(RateLimiterPolicies.Auth)]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
@@ -50,7 +53,7 @@ public sealed class AccountController(AuthService authService) : Controller
             return ValidationProblem(ModelState);
         }
 
-        var result = await authService.RegisterAsync(request.Email, request.Password, cancellationToken);
+        var result = await authService.RegisterAsync(request.Email, request.Password, HttpContext.Connection.RemoteIpAddress?.ToString(), cancellationToken);
         if (!result.Succeeded)
         {
             return Problem(detail: result.ErrorMessage, statusCode: StatusCodes.Status409Conflict, title: result.ErrorCode);

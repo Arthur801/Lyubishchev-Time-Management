@@ -111,7 +111,6 @@
 
 ## 尚未涵蓋的部分
 
-- **Rate limiting**：`AGENTS.md` 要求 Login/Register 要有基本的 rate limiting，目前尚未實作（見 `Docs/TODO.md` 第 15 項）。
-- **Auth failure 記錄**：`Infrastructure/Logging` 目前仍是空的，尚未加上「authentication failure summary」的紀錄邏輯。
+- **Rate limiting**、**Auth failure 記錄**：已於後續補上，詳見 [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md)。
 - **Token 撤銷 / 單裝置登出**：目前 JWT 是無狀態的，效期內即使使用者登出，若 token 被複製到其他地方仍可使用到過期為止（8 小時）。V1 範圍內沒有實作黑名單或 refresh token 機制，這點與多數單人使用的小型專案取捨一致，但若未來有安全性更高的需求，需另外設計。
 - **Email 驗證、忘記密碼、改密碼、OAuth**：依 `AGENTS.md` 定義為 V1 不做的項目，此次也沒有實作。

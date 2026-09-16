@@ -1,6 +1,6 @@
 # TODO List
 
-依照 `AGENTS.md` / `Docs/system_design_document.md` 的 Implementation Order 整理，最後更新於 2026-09-17。JWT Cookie 驗證流程已於 `feat/jwt-cookie-auth-flow` 分支完成並合併進 `main`，細節請見 [`Docs/JWT.md`](JWT.md)。
+依照 `AGENTS.md` / `Docs/system_design_document.md` 的 Implementation Order 整理，最後更新於 2026-09-17。JWT Cookie 驗證流程已於 `feat/jwt-cookie-auth-flow` 分支完成並合併進 `main`，細節請見 [`Docs/JWT.md`](JWT.md)。Login/Register rate limiting 與 auth failure 記錄已完成，細節請見 [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md)。
 
 狀態標記：`[x]` 完成、`[~]` 部分完成、`[ ]` 未開始
 
@@ -18,7 +18,7 @@
 - [x] `wwwroot/js/auth.js` 已改為透過 `fetch` 實際呼叫 API，並附上 CSRF header
 - [x] `DashboardController`、`TimeEntryController` 已套用 `[Authorize]`，未登入使用者存取會被導向 `/Account/Login`
 - [x] CSRF/Antiforgery：header-based token，已接到 `_Layout.cshtml`/`_AuthLayout.cshtml` 與 `auth.js`
-- [ ] Login/Register 尚無 rate limiting（見第 15 項）
+- [x] Login/Register rate limiting（見第 15 項）
 - 詳細實作說明見 [`Docs/JWT.md`](JWT.md)
 
 ## 3. RunningTimer / Start / Stop
@@ -83,8 +83,8 @@
 
 ## 15. Error handling / Logging / Rate limit
 - [ ] 全域例外處理（Global Exception Handler）尚未確認是否已設定
-- [ ] `Infrastructure/Logging/` 目前僅有 `.gitkeep`，無自訂 log 事件（startup/shutdown、DB 錯誤、auth failure、timer transaction failure、CSV export failure）
-- [ ] Login/Register 尚無 rate limiting
+- [~] `Infrastructure/Logging/`：`IAuthEventLogger`/`AuthEventLogger` 已完成 auth failure/success 記錄，其餘 log 事件（startup/shutdown、DB 錯誤、timer transaction failure、CSV export failure）待對應功能實作時補上。詳見 [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md)
+- [x] Login/Register rate limiting（`Microsoft.AspNetCore.RateLimiting`，同 IP 5 分鐘內限 10 次），詳見 [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md)
 - [x] CSRF/Antiforgery 已設定（header-based，`Account` 的 Login/Register/Logout 已套用 `[ValidateAntiForgeryToken]`），其餘未來的狀態變更 API 仍需比照套用
 
 ## 16. Nginx / EC2 / Backup
@@ -103,10 +103,11 @@
 - 資料模型與 EF Core 設定（Users/RunningTimers/Categories/Tags/TimeEntries/TimeEntryTags）完全符合設計文件
 - 專案資料夾結構、Controller/Service/JS 檔名均已依文件建立（多數為空殼待實作）
 - JWT Cookie 驗證流程（Register/Login/Logout + `[Authorize]` 頁面保護 + CSRF），詳見 [`Docs/JWT.md`](JWT.md)
+- Login/Register rate limiting（同 IP 5 分鐘 10 次）與 auth 事件記錄（`IAuthEventLogger`），詳見 [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md)
 - 頁面殼：Login、Register、Dashboard、TimeEntry List（前端原型，Dashboard/TimeEntry 已受 `[Authorize]` 保護，但顯示內容仍是 mock data，尚未串接真實後端資料）
 - Secrets 管理：連線字串、JWT 簽章金鑰皆使用 `dotnet user-secrets`，未提交至 Git
 
 ## 下一步建議優先順序
 1. RunningTimer Start/Stop（核心計時功能）
 2. Manual TimeEntry CRUD + `TimeAggregationService`（讓 Dashboard/History 串接真實資料，取代 mock data）
-3. Login/Register rate limiting、`Infrastructure/Logging` 的 auth failure 記錄
+3. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）
