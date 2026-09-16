@@ -40,7 +40,16 @@ public sealed class AuthService(AppDbContext dbContext, JwtTokenService jwtToken
         user.PasswordHash = PasswordHasher.HashPassword(user, password);
 
         dbContext.Users.Add(user);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // The email is the only unique constraint on Users, so a failed insert
+            // here means another request registered the same email concurrently.
+            return AuthResult.Fail("EMAIL_ALREADY_REGISTERED", "此電子郵件已被註冊。");
+        }
 
         return AuthResult.Ok(jwtTokenService.CreateToken(user));
     }

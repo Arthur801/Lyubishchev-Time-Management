@@ -6,6 +6,13 @@ const showAlert = (element, message) => {
     element.hidden = !message;
 };
 
+const extractErrorMessage = (data, fallback) => {
+    if (data?.detail) return data.detail;
+    const firstFieldError = Object.values(data?.errors ?? {})[0];
+    if (Array.isArray(firstFieldError) && firstFieldError.length > 0) return firstFieldError[0];
+    return fallback;
+};
+
 const submitAuthRequest = async (url, payload) => {
     const response = await fetch(url, {
         method: "POST",
@@ -74,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            showAlert(loginAlert, data?.detail ?? "電子郵件或密碼錯誤。");
+            showAlert(loginAlert, extractErrorMessage(data, "電子郵件或密碼錯誤。"));
         } catch {
             showAlert(loginAlert, "發生錯誤，請稍後再試。");
         } finally {
@@ -160,7 +167,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            showAlert(registerAlert, data?.detail ?? "註冊失敗，請稍後再試。");
+            showAlert(registerAlert, extractErrorMessage(data, "註冊失敗，請稍後再試。"));
         } catch {
             showAlert(registerAlert, "發生錯誤，請稍後再試。");
         } finally {

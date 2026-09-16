@@ -6,10 +6,12 @@ public sealed class RegisterRequest
 {
     [Required(ErrorMessage = "請輸入電子郵件。")]
     [EmailAddress(ErrorMessage = "請輸入有效的電子郵件。")]
+    [MaxLength(320, ErrorMessage = "電子郵件長度不可超過 320 個字元。")]
     public string Email { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "請輸入密碼。")]
     [MinLength(8, ErrorMessage = "密碼至少需要 8 個字元。")]
+    [MaxLength(200, ErrorMessage = "密碼長度不可超過 200 個字元。")]
     public string Password { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "請再次輸入密碼。")]
