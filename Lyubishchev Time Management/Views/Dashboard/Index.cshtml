@@ -2,12 +2,16 @@
     ViewData["Title"] = "儀表板";
 }
 
+@section Styles {
+    <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
+}
+
 <div class="dashboard-page" id="dashboard-page">
     <aside class="app-sidebar" aria-label="主要導覽">
         <a class="app-brand" href="#" aria-label="LTM 儀表板"><span>LTM</span><small>TIME LOG</small></a>
         <nav class="app-nav">
             <a class="app-nav__link app-nav__link--active" href="#dashboard-content" aria-current="page"><span aria-hidden="true">◈</span>儀表板</a>
-            <a class="app-nav__link" href="#"><span aria-hidden="true">◷</span>歷史紀錄</a>
+            <a class="app-nav__link" asp-controller="TimeEntry" asp-action="Index"><span aria-hidden="true">◷</span>歷史紀錄</a>
             <a class="app-nav__link" href="#"><span aria-hidden="true">▥</span>報表</a>
             <a class="app-nav__link" href="#"><span aria-hidden="true">◌</span>分類</a>
             <a class="app-nav__link" href="#"><span aria-hidden="true">#</span>標籤</a>
@@ -64,5 +68,9 @@
         </section>
     </main>
 
-    <nav class="mobile-nav" aria-label="行動裝置主要導覽"><a class="mobile-nav__link mobile-nav__link--active" href="#dashboard-content" aria-current="page">◈<span>總覽</span></a><a class="mobile-nav__link" href="#">◷<span>紀錄</span></a><a class="mobile-nav__link" href="#">▥<span>報表</span></a><a class="mobile-nav__link" href="#">⚙<span>設定</span></a></nav>
+    <nav class="mobile-nav" aria-label="行動裝置主要導覽"><a class="mobile-nav__link mobile-nav__link--active" href="#dashboard-content" aria-current="page">◈<span>總覽</span></a><a class="mobile-nav__link" asp-controller="TimeEntry" asp-action="Index">◷<span>紀錄</span></a><a class="mobile-nav__link" href="#">▥<span>報表</span></a><a class="mobile-nav__link" href="#">⚙<span>設定</span></a></nav>
 </div>
+
+@section Scripts {
+    <script type="module" src="~/js/dashboard.js" asp-append-version="true"></script>
+}

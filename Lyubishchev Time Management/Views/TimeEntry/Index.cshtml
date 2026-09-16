@@ -1,0 +1,66 @@
+@{
+    ViewData["Title"] = "歷史紀錄";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/history.css" asp-append-version="true" />
+}
+
+<div class="dashboard-page" id="history-page">
+    <aside class="app-sidebar" aria-label="主要導覽">
+        <a class="app-brand" asp-controller="Dashboard" asp-action="Index" aria-label="LTM 儀表板"><span>LTM</span><small>TIME LOG</small></a>
+        <nav class="app-nav">
+            <a class="app-nav__link" asp-controller="Dashboard" asp-action="Index"><span aria-hidden="true">◈</span>儀表板</a>
+            <a class="app-nav__link app-nav__link--active" asp-controller="TimeEntry" asp-action="Index" aria-current="page"><span aria-hidden="true">◷</span>歷史紀錄</a>
+            <a class="app-nav__link" href="#"><span aria-hidden="true">▥</span>報表</a>
+            <a class="app-nav__link" href="#"><span aria-hidden="true">◌</span>分類</a>
+            <a class="app-nav__link" href="#"><span aria-hidden="true">#</span>標籤</a>
+            <a class="app-nav__link" href="#"><span aria-hidden="true">⚙</span>設定</a>
+        </nav>
+        <a class="app-nav__link app-nav__link--logout" href="#"><span aria-hidden="true">↗</span>登出</a>
+    </aside>
+
+    <header class="mobile-header">
+        <a class="app-brand" asp-controller="Dashboard" asp-action="Index" aria-label="LTM 儀表板"><span>LTM</span><small>TIME LOG</small></a>
+        <button class="icon-button" type="button" aria-label="開啟設定">⚙</button>
+    </header>
+
+    <main class="dashboard-content history-content" id="history-content">
+        <header class="page-heading">
+            <div><p class="eyebrow">歷史紀錄</p><h1>回顧你走過的每一段時間。</h1><p id="history-count">載入中…</p></div>
+        </header>
+
+        <section class="filter-bar" aria-label="篩選紀錄">
+            <div class="range-presets" role="group" aria-label="快捷日期範圍">
+                <button type="button" class="range-button range-button--active" data-range="today" aria-pressed="true">今天</button>
+                <button type="button" class="range-button" data-range="week" aria-pressed="false">本週</button>
+                <button type="button" class="range-button" data-range="month" aria-pressed="false">本月</button>
+                <button type="button" class="range-button" data-range="all" aria-pressed="false">全部</button>
+            </div>
+            <label class="filter-field">分類
+                <select id="filter-category">
+                    <option value="">全部分類</option>
+                </select>
+            </label>
+            <label class="filter-field filter-field--search">搜尋
+                <input id="filter-search" type="search" placeholder="依名稱或標籤搜尋" />
+            </label>
+        </section>
+
+        <section class="entry-groups" id="entry-groups" aria-live="polite"></section>
+
+        <p class="empty-state" id="empty-state" hidden>這個範圍內還沒有任何紀錄。</p>
+    </main>
+
+    <nav class="mobile-nav" aria-label="行動裝置主要導覽">
+        <a class="mobile-nav__link" asp-controller="Dashboard" asp-action="Index">◈<span>總覽</span></a>
+        <a class="mobile-nav__link mobile-nav__link--active" asp-controller="TimeEntry" asp-action="Index" aria-current="page">◷<span>紀錄</span></a>
+        <a class="mobile-nav__link" href="#">▥<span>報表</span></a>
+        <a class="mobile-nav__link" href="#">⚙<span>設定</span></a>
+    </nav>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/js/time-entry.js" asp-append-version="true"></script>
+}
