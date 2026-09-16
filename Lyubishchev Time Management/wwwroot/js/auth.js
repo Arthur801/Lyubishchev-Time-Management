@@ -1,3 +1,31 @@
+const getCsrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content ?? "";
+
+const showAlert = (element, message) => {
+    if (!element) return;
+    element.textContent = message;
+    element.hidden = !message;
+};
+
+const submitAuthRequest = async (url, payload) => {
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": getCsrfToken(),
+        },
+        body: JSON.stringify(payload),
+    });
+
+    let data = null;
+    try {
+        data = await response.json();
+    } catch {
+        data = null;
+    }
+
+    return { ok: response.ok, data };
+};
+
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("login-form");
     const email = document.getElementById("email");
@@ -6,6 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const submitButton = document.getElementById("login-submit");
     const emailError = document.getElementById("email-error");
     const passwordError = document.getElementById("password-error");
+    const loginAlert = document.getElementById("login-alert");
 
     if (!form || !email || !password || !passwordToggle || !submitButton || !emailError || !passwordError) {
         return;
@@ -16,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
         input.setAttribute("aria-invalid", message ? "true" : "false");
     };
 
-    form.addEventListener("submit", (event) => {
+    form.addEventListener("submit", async (event) => {
         event.preventDefault();
 
         const isEmailValid = email.validity.valid;
@@ -24,6 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         setFieldError(email, emailError, isEmailValid ? "" : "請輸入有效的電子郵件。");
         setFieldError(password, passwordError, isPasswordValid ? "" : "請輸入密碼。");
+        showAlert(loginAlert, "");
 
         if (!isEmailValid || !isPasswordValid) {
             (isEmailValid ? password : email).focus();
@@ -32,6 +62,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
         submitButton.disabled = true;
         submitButton.textContent = "登入中…";
+
+        try {
+            const { ok, data } = await submitAuthRequest(`/Account/Login${window.location.search}`, {
+                email: email.value,
+                password: password.value,
+            });
+
+            if (ok && data?.redirectUrl) {
+                window.location.href = data.redirectUrl;
+                return;
+            }
+
+            showAlert(loginAlert, data?.detail ?? "電子郵件或密碼錯誤。");
+        } catch {
+            showAlert(loginAlert, "發生錯誤，請稍後再試。");
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = "登入";
+        }
     });
 
     passwordToggle.addEventListener("click", () => {
@@ -54,6 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const emailError = document.getElementById("email-error");
     const passwordError = document.getElementById("password-error");
     const confirmPasswordError = document.getElementById("confirm-password-error");
+    const registerAlert = document.getElementById("register-alert");
 
     if (!form || !email || !password || !confirmPassword || !submitButton || !emailError || !passwordError || !confirmPasswordError) {
         return;
@@ -78,7 +128,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     };
 
-    form.addEventListener("submit", (event) => {
+    form.addEventListener("submit", async (event) => {
         event.preventDefault();
 
         const isEmailValid = email.validity.valid;
@@ -88,6 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
         setFieldError(email, emailError, isEmailValid ? "" : "請輸入有效的電子郵件。");
         setFieldError(password, passwordError, isPasswordValid ? "" : "密碼至少需要 8 個字元。");
         setFieldError(confirmPassword, confirmPasswordError, isConfirmPasswordValid ? "" : "兩次輸入的密碼不一致。");
+        showAlert(registerAlert, "");
 
         if (!isEmailValid || !isPasswordValid || !isConfirmPasswordValid) {
             (isEmailValid ? (isPasswordValid ? confirmPassword : password) : email).focus();
@@ -96,6 +147,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
         submitButton.disabled = true;
         submitButton.textContent = "註冊中…";
+
+        try {
+            const { ok, data } = await submitAuthRequest("/Account/Register", {
+                email: email.value,
+                password: password.value,
+                confirmPassword: confirmPassword.value,
+            });
+
+            if (ok && data?.redirectUrl) {
+                window.location.href = data.redirectUrl;
+                return;
+            }
+
+            showAlert(registerAlert, data?.detail ?? "註冊失敗，請稍後再試。");
+        } catch {
+            showAlert(registerAlert, "發生錯誤，請稍後再試。");
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = "註冊";
+        }
     });
 
     wireToggle("password-toggle", password);

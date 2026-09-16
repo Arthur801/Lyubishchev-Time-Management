@@ -1,8 +1,11 @@
-﻿<!DOCTYPE html>
+﻿@using Microsoft.AspNetCore.Antiforgery
+@inject IAntiforgery Antiforgery
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="@Antiforgery.GetAndStoreTokens(Context).RequestToken" />
     <title>@ViewData["Title"] - Lyubishchev_Time_Management</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -12,5 +15,22 @@
 <body class="app-body">
     @RenderBody()
     @await RenderSectionAsync("Scripts", required: false)
+    <script>
+        document.addEventListener("click", async (event) => {
+            const logoutLink = event.target.closest(".app-nav__link--logout");
+            if (!logoutLink) return;
+            event.preventDefault();
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? "";
+            try {
+                await fetch("/Account/Logout", {
+                    method: "POST",
+                    headers: { "X-CSRF-TOKEN": csrfToken },
+                });
+            } finally {
+                window.location.href = "/Account/Login";
+            }
+        });
+    </script>
 </body>
 </html>
