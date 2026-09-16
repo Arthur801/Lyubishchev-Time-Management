@@ -1,0 +1,52 @@
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "註冊";
+}
+
+<section class="login-shell" aria-labelledby="register-heading">
+    <div class="login-card">
+        <a asp-controller="Home" asp-action="Index" class="brand" aria-label="LTM 首頁">
+            <span class="brand__mark">LTM</span>
+            <span class="brand__name">TIME LOG</span>
+        </a>
+
+        <header class="login-card__header">
+            <h1 id="register-heading">建立帳號</h1>
+            <p>開始如實記錄你的每一段時間。</p>
+        </header>
+
+        <div id="register-alert" class="form-alert" role="alert" hidden></div>
+
+        <form id="register-form" class="login-form" novalidate>
+            <div class="form-group">
+                <label for="email">電子郵件</label>
+                <input id="email" type="email" autocomplete="email" required aria-describedby="email-error" />
+                <p id="email-error" class="field-error" aria-live="polite"></p>
+            </div>
+
+            <div class="form-group">
+                <label for="password">密碼</label>
+                <div class="password-field">
+                    <input id="password" type="password" autocomplete="new-password" minlength="8" required aria-describedby="password-error" />
+                    <button id="password-toggle" class="password-toggle" type="button" aria-label="顯示密碼" aria-pressed="false">顯示</button>
+                </div>
+                <p id="password-error" class="field-error" aria-live="polite"></p>
+            </div>
+
+            <div class="form-group">
+                <label for="confirm-password">確認密碼</label>
+                <div class="password-field">
+                    <input id="confirm-password" type="password" autocomplete="new-password" required aria-describedby="confirm-password-error" />
+                    <button id="confirm-password-toggle" class="password-toggle" type="button" aria-label="顯示密碼" aria-pressed="false">顯示</button>
+                </div>
+                <p id="confirm-password-error" class="field-error" aria-live="polite"></p>
+            </div>
+
+            <button id="register-submit" class="login-submit" type="submit">註冊</button>
+        </form>
+
+        <p class="register-prompt">已經有帳號了？ <a asp-controller="Account" asp-action="Login" aria-label="前往登入">立即登入</a></p>
+    </div>
+
+    <footer class="auth-footer">© 2026 LTM · 私人時間紀錄</footer>
+</section>
