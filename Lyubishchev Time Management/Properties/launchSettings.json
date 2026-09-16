@@ -23,8 +23,10 @@
       "launchBrowser": true,
       "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
       "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
         "ASPNETCORE_HTTPS_PORTS": "8081",
-        "ASPNETCORE_HTTP_PORTS": "8080"
+        "ASPNETCORE_HTTP_PORTS": "8080",
+        "ConnectionStrings__DefaultConnection": "Server=host.docker.internal;Port=3306;Database=lyubishchev_time_management;User ID=dev;Password=dev;"
       },
       "publishAllPorts": true,
       "useSSL": true
