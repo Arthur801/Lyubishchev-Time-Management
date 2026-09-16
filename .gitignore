@@ -1,0 +1,19 @@
+# .NET build output
+**/[Bb]in/
+**/[Oo]bj/
+
+# Visual Studio and IDE state
+.vs/
+.idea/
+*.user
+*.suo
+
+# Local development secrets and environment files
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.*.Local.json
+
+# Logs
+*.log
