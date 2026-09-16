@@ -1,1 +1,246 @@
-/* Intentionally empty auth stylesheet shell; reserved for a later task. */
+:root {
+    color-scheme: light;
+}
+
+body.auth-page {
+    min-width: 320px;
+    min-height: 100vh;
+    margin: 0;
+    background: #f5f3f1;
+    color: #252321;
+    font-family: Inter, "Noto Sans TC", "Microsoft JhengHei", Arial, sans-serif;
+}
+
+.auth-page__main {
+    box-sizing: border-box;
+    display: flex;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+}
+
+.login-shell {
+    width: min(100%, 400px);
+}
+
+.login-card {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 36px;
+    background: #ffffff;
+    border: 1px solid #e6e1dd;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px rgb(48 38 31 / 8%);
+}
+
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: #252321;
+    text-decoration: none;
+}
+
+.brand__mark {
+    display: inline-grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    background: #e5533d;
+    border-radius: 9px;
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.brand__name {
+    color: #625c57;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+}
+
+.login-card__header {
+    margin: 28px 0 24px;
+}
+
+.login-card__header h1 {
+    margin: 0;
+    color: #252321;
+    font-size: 1.75rem;
+    font-weight: 750;
+    line-height: 1.25;
+}
+
+.login-card__header p {
+    margin: 8px 0 0;
+    color: #756e68;
+    line-height: 1.6;
+}
+
+.form-alert {
+    margin: 0 0 20px;
+    padding: 11px 12px;
+    border: 1px solid #edb3a9;
+    border-radius: 8px;
+    background: #fff4f1;
+    color: #a33220;
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.form-alert[hidden] {
+    display: none;
+}
+
+.login-form {
+    display: grid;
+    gap: 18px;
+}
+
+.form-group {
+    display: grid;
+    gap: 7px;
+}
+
+.form-group label {
+    color: #403b37;
+    font-size: 0.9rem;
+    font-weight: 650;
+}
+
+.form-group input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid #cfc8c2;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #252321;
+    font: inherit;
+    line-height: 1.4;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.form-group input::placeholder {
+    color: #97908a;
+}
+
+.form-group input[aria-invalid="true"] {
+    border-color: #c94432;
+}
+
+.password-field {
+    position: relative;
+}
+
+.password-field input {
+    padding-right: 70px;
+}
+
+.password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    min-height: 32px;
+    padding: 4px 8px;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #756e68;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 650;
+}
+
+.password-toggle:hover {
+    background: #f3f0ed;
+    color: #403b37;
+}
+
+.field-error {
+    min-height: 1.25em;
+    margin: -1px 0 0;
+    color: #b63828;
+    font-size: 0.8rem;
+    line-height: 1.35;
+}
+
+.login-submit {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 16px;
+    border: 1px solid #e5533d;
+    border-radius: 8px;
+    background: #e5533d;
+    color: #ffffff;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    line-height: 1.4;
+    transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.login-submit:hover:not(:disabled) {
+    border-color: #c94432;
+    background: #c94432;
+}
+
+.login-submit:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.login-submit:disabled {
+    border-color: #dfa59c;
+    background: #dfa59c;
+    cursor: not-allowed;
+}
+
+.auth-page a:focus-visible,
+.auth-page button:focus-visible,
+.auth-page input:focus-visible {
+    outline: 3px solid rgb(47 69 92 / 30%);
+    outline-offset: 2px;
+}
+
+.form-group input:focus-visible {
+    border-color: #2f455c;
+    box-shadow: 0 0 0 3px rgb(47 69 92 / 30%);
+    outline: 0;
+}
+
+.register-prompt {
+    margin: 24px 0 0;
+    color: #756e68;
+    font-size: 0.875rem;
+    line-height: 1.55;
+    text-align: center;
+}
+
+.register-prompt span {
+    color: #403b37;
+    font-weight: 650;
+}
+
+.auth-footer {
+    margin: 20px 0 0;
+    color: #8a837d;
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+@media (max-width: 479px) {
+    .auth-page__main {
+        align-items: flex-start;
+        padding: 20px;
+    }
+
+    .login-card {
+        padding: 28px 24px;
+    }
+}
