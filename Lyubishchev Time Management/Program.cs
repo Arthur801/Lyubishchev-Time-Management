@@ -1,6 +1,7 @@
 using System.Text;
 using System.Threading.RateLimiting;
 using Lyubishchev_Time_Management.Data;
+using Lyubishchev_Time_Management.Infrastructure.Clock;
 using Lyubishchev_Time_Management.Infrastructure.Logging;
 using Lyubishchev_Time_Management.Security;
 using Lyubishchev_Time_Management.Services;
@@ -35,8 +36,10 @@ if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddSingleton<IAuthEventLogger, AuthEventLogger>();
+builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddScoped<CurrentUserService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<TimerService>();
 
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 

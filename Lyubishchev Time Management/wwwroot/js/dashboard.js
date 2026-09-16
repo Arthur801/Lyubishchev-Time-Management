@@ -1,14 +1,10 @@
-import { addCompletedEntry, formatDuration, getPresetSnapshot, isValidDateRange } from './dashboard-state.mjs';
+import { formatDuration, getPresetSnapshot, isValidDateRange } from './dashboard-state.mjs';
 
 const page = document.querySelector('#dashboard-page');
 
 if (page) {
-  const state = {
-    range: 'today', snapshot: getPresetSnapshot('today'), timerRunning: false, startedAt: null,
-    timerTags: ['規劃', '深度工作'], elapsedSeconds: 0, interval: null
-  };
+  const state = { range: 'today', snapshot: getPresetSnapshot('today') };
   const $ = selector => document.querySelector(selector);
-  const formatClock = seconds => new Date(Math.max(0, seconds) * 1000).toISOString().slice(11, 19);
 
   function renderSnapshot() {
     const { snapshot } = state;
@@ -44,15 +40,6 @@ if (page) {
   }
 
   function renderRecent(recent) { $('#recent-list').innerHTML = recent.slice(0, 3).map(item => `<li class="recent-item"><strong>${item.name}</strong><span>${item.category} · ${item.duration}</span><span>${item.time}</span></li>`).join(''); }
-  function renderTagsEditor() { $('#timer-tags').innerHTML = state.timerTags.map(tag => `<span class="tag-chip">${tag}<button type="button" data-remove-tag="${tag}" aria-label="移除標籤 ${tag}">×</button></span>`).join(''); }
-  function renderTimer() { $('#timer-display').textContent = formatClock(state.elapsedSeconds); $('#timer-toggle').textContent = state.timerRunning ? '停止計時' : '開始計時'; $('#timer-toggle').classList.toggle('is-running', state.timerRunning); $('#timer-toggle').setAttribute('aria-pressed', String(state.timerRunning)); $('#timer-status').textContent = state.timerRunning ? '正在記錄，專注進行中' : '尚未開始計時'; }
-
-  function stopTimer() {
-    window.clearInterval(state.interval); state.timerRunning = false;
-    const minutes = Math.max(1, Math.round(state.elapsedSeconds / 60));
-    state.snapshot = addCompletedEntry(state.snapshot, { name: $('#timer-name').value.trim(), category: $('#timer-category').value, tags: state.timerTags, minutes });
-    state.elapsedSeconds = 0; renderTimer(); renderSnapshot();
-  }
 
   document.querySelectorAll('[data-range]').forEach(button => button.addEventListener('click', () => {
     const range = button.dataset.range;
@@ -65,9 +52,5 @@ if (page) {
     if (!isValidDateRange(start, end)) { $('#range-error').textContent = '結束日期必須晚於或等於開始日期。'; return; }
     state.range = 'custom'; state.snapshot = getPresetSnapshot('week'); state.snapshot.label = `自訂 · ${start} 至 ${end}`; state.snapshot.change = '自訂區間的前端範例資料'; $('#range-error').textContent = ''; renderSnapshot();
   });
-  $('#timer-toggle').addEventListener('click', () => { if (state.timerRunning) { stopTimer(); return; } state.timerRunning = true; state.startedAt = Date.now() - state.elapsedSeconds * 1000; state.interval = window.setInterval(() => { state.elapsedSeconds = Math.floor((Date.now() - state.startedAt) / 1000); renderTimer(); }, 1000); renderTimer(); });
-  $('#add-tag').addEventListener('click', () => { const tag = $('#tag-input').value.trim(); if (tag && !state.timerTags.includes(tag)) state.timerTags.push(tag); $('#tag-input').value = ''; renderTagsEditor(); });
-  $('#tag-input').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); $('#add-tag').click(); } });
-  $('#timer-tags').addEventListener('click', event => { const tag = event.target.dataset.removeTag; if (tag) { state.timerTags = state.timerTags.filter(item => item !== tag); renderTagsEditor(); } });
-  renderTagsEditor(); renderTimer(); renderSnapshot();
+  renderSnapshot();
 }

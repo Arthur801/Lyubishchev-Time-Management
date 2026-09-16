@@ -1,6 +1,6 @@
 # TODO List
 
-依照 `AGENTS.md` / `Docs/system_design_document.md` 的 Implementation Order 整理，最後更新於 2026-09-17。JWT Cookie 驗證流程已於 `feat/jwt-cookie-auth-flow` 分支完成並合併進 `main`，細節請見 [`Docs/JWT.md`](JWT.md)。Login/Register rate limiting 與 auth failure 記錄已完成，細節請見 [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md)。
+依照 `AGENTS.md` / `Docs/system_design_document.md` 的 Implementation Order 整理，最後更新於 2026-09-17。JWT Cookie 驗證流程已於 `feat/jwt-cookie-auth-flow` 分支完成並合併進 `main`，細節請見 [`Docs/JWT.md`](JWT.md)。Login/Register rate limiting 與 auth failure 記錄已完成，細節請見 [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md)。RunningTimer Start/Stop 核心計時功能已完成，細節請見 [`Docs/RunningTimerStartStop.md`](RunningTimerStartStop.md)。
 
 狀態標記：`[x]` 完成、`[~]` 部分完成、`[ ]` 未開始
 
@@ -22,10 +22,11 @@
 - 詳細實作說明見 [`Docs/JWT.md`](JWT.md)
 
 ## 3. RunningTimer / Start / Stop
-- [ ] `Services/TimerService.cs`（空殼）
-- [ ] `Controllers/Api/TimerApiController.cs`（空殼，`/api/timer`、`/api/timer/start`、`/api/timer/stop` 均未實作）
-- [ ] Stop Timer 的 DB transaction 流程（lock → 讀取 UTC now → 建立 TimeEntry → 刪除 RunningTimer → commit）尚未實作
-- [ ] `wwwroot/js/timer.js` 尚待確認/串接
+- [x] `Services/TimerService.cs`（`GetStatusAsync`/`StartAsync`/`StopAsync`，含 `IClock` 抽象化時間）
+- [x] `Controllers/Api/TimerApiController.cs`（`GET /api/timer`、`POST /api/timer/start`、`POST /api/timer/stop`，`[Authorize]` + CSRF）
+- [x] Stop Timer 的 DB transaction 流程（讀取 → 建立 TimeEntry → 刪除 RunningTimer → commit，並發衝突以 `DbUpdateConcurrencyException` 偵測後 rollback，確保只有一筆 TimeEntry）
+- [x] `wwwroot/js/timer.js` 已串接真實 API（Dashboard 計時卡片），取代原本 `dashboard.js` 內的前端模擬計時邏輯
+- 詳細實作說明見 [`Docs/RunningTimerStartStop.md`](RunningTimerStartStop.md)
 
 ## 4. Manual TimeEntry CRUD
 - [ ] `Services/TimeEntryService.cs`（空殼）
@@ -93,9 +94,10 @@
 ---
 
 ## 測試（AGENTS.md Testing Priorities）
-- [ ] C# Unit Tests：duration、overlap、interval intersection、cross-midnight、timezone conversion、Category/Tag aggregation、Timer state — 目前 `Tests/Unit/` 只有一支 JS 前端測試（`dashboard-frontend.test.mjs`），無對應 C# 測試
+- [~] C# Unit Tests：Timer state 已隨 `TimerFlow.Tests` 一併覆蓋；duration、overlap、interval intersection、cross-midnight、timezone conversion、Category/Tag aggregation 待 `TimeAggregationService`（第 9 項）實作後補上
 - [x] Integration Tests：Register/Login 已完成（`Tests/AuthFlow.Tests`，12 個測試：`ReturnUrlPolicyTests` 7 個 + `AuthServiceTests` 5 個，使用 EF Core InMemory）
-- [ ] Integration Tests：Start/Stop Timer、並發 Stop、TimeEntry CRUD、Category 刪除 SET NULL、Tag 刪除只移除關聯、跨使用者存取拒絕 — 尚未開始
+- [x] Integration Tests：Start/Stop Timer、並發 Stop 已完成（`Tests/TimerFlow.Tests`，7 個測試，使用 SQLite in-memory；細節見 [`Docs/RunningTimerStartStop.md`](RunningTimerStartStop.md)）
+- [ ] Integration Tests：TimeEntry CRUD、Category 刪除 SET NULL、Tag 刪除只移除關聯、跨使用者存取拒絕 — 尚未開始
 
 ---
 
@@ -104,10 +106,11 @@
 - 專案資料夾結構、Controller/Service/JS 檔名均已依文件建立（多數為空殼待實作）
 - JWT Cookie 驗證流程（Register/Login/Logout + `[Authorize]` 頁面保護 + CSRF），詳見 [`Docs/JWT.md`](JWT.md)
 - Login/Register rate limiting（同 IP 5 分鐘 10 次）與 auth 事件記錄（`IAuthEventLogger`），詳見 [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md)
-- 頁面殼：Login、Register、Dashboard、TimeEntry List（前端原型，Dashboard/TimeEntry 已受 `[Authorize]` 保護，但顯示內容仍是 mock data，尚未串接真實後端資料）
+- RunningTimer Start/Stop 核心計時功能（含單一交易的 Stop 流程、並發 Stop 只建立一筆 TimeEntry、Dashboard 計時卡片已串接真實 API），詳見 [`Docs/RunningTimerStartStop.md`](RunningTimerStartStop.md)
+- 頁面殼：Login、Register、Dashboard、TimeEntry List（前端原型，Dashboard/TimeEntry 已受 `[Authorize]` 保護；Dashboard 的計時器已是真實資料，其餘統計卡片/圖表仍是 mock data，尚未串接真實後端資料）
 - Secrets 管理：連線字串、JWT 簽章金鑰皆使用 `dotnet user-secrets`，未提交至 Git
 
 ## 下一步建議優先順序
-1. RunningTimer Start/Stop（核心計時功能）
-2. Manual TimeEntry CRUD + `TimeAggregationService`（讓 Dashboard/History 串接真實資料，取代 mock data）
+1. Manual TimeEntry CRUD + `TimeAggregationService`（讓 Dashboard/History 串接真實資料，取代 mock data）
+2. Category、Tag + TimeEntryTag（讓計時器 Stop 之後可以補上分類與標籤）
 3. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）
