@@ -1,6 +1,6 @@
 # 專案交接摘要（給接手的 AI Agent）
 
-最後更新：2026-09-17，涵蓋到 Timezone settings 與 TimeAggregationService 完成（依照 [`Docs/superpowers/specs/2026-09-17-timezone-and-aggregation-design.md`](superpowers/specs/2026-09-17-timezone-and-aggregation-design.md) 與對應的 [`Docs/superpowers/plans/2026-09-17-timezone-settings.md`](superpowers/plans/2026-09-17-timezone-settings.md)、[`Docs/superpowers/plans/2026-09-17-time-aggregation-service.md`](superpowers/plans/2026-09-17-time-aggregation-service.md) 實作；再往前是 Category/Tag 管理功能，依照 [`Docs/superpowers/specs/2026-09-17-category-tag-management-design.md`](superpowers/specs/2026-09-17-category-tag-management-design.md) 與 [`Docs/superpowers/plans/2026-09-17-category-tag-management.md`](superpowers/plans/2026-09-17-category-tag-management.md) 實作）。本文件的目的是讓另一個 AI agent 不需要重新爬梳整個對話記錄，就能接續目前的進度。**開始工作前務必先讀 `AGENTS.md`（專案根目錄，`CLAUDE.md` 只是 `@AGENTS.md` 的轉介）——那是這個專案唯一的權威規格文件，所有設計決策都必須對齊它。**
+最後更新：2026-09-17，涵蓋到 Dashboard 真實資料串接完成（依照 [`Docs/superpowers/specs/2026-09-17-dashboard-design.md`](superpowers/specs/2026-09-17-dashboard-design.md) 與 [`Docs/superpowers/plans/2026-09-17-dashboard.md`](superpowers/plans/2026-09-17-dashboard.md) 實作）。再往前依序是 Timezone settings 與 TimeAggregationService（依照 [`Docs/superpowers/specs/2026-09-17-timezone-and-aggregation-design.md`](superpowers/specs/2026-09-17-timezone-and-aggregation-design.md) 與對應的 [`Docs/superpowers/plans/2026-09-17-timezone-settings.md`](superpowers/plans/2026-09-17-timezone-settings.md)、[`Docs/superpowers/plans/2026-09-17-time-aggregation-service.md`](superpowers/plans/2026-09-17-time-aggregation-service.md) 實作），再更早是 Category/Tag 管理功能（依照 [`Docs/superpowers/specs/2026-09-17-category-tag-management-design.md`](superpowers/specs/2026-09-17-category-tag-management-design.md) 與 [`Docs/superpowers/plans/2026-09-17-category-tag-management.md`](superpowers/plans/2026-09-17-category-tag-management.md) 實作）。本文件的目的是讓另一個 AI agent 不需要重新爬梳整個對話記錄，就能接續目前的進度。**開始工作前務必先讀 `AGENTS.md`（專案根目錄，`CLAUDE.md` 只是 `@AGENTS.md` 的轉介）——那是這個專案唯一的權威規格文件，所有設計決策都必須對齊它。**
 
 ---
 
@@ -26,8 +26,8 @@
 | 6 | Tag + TimeEntryTag | ✅ 完成 | 見下方「Category/Tag 管理」章節 |
 | 7 | History List | ✅ 完成（隨第4項一起做，非 mock data） | [`Docs/TimeEntryCrud.md`](TimeEntryCrud.md) |
 | 8 | Calendar View | ❌ 未開始 | — |
-| 9 | TimeAggregationService | ✅ 完成（尚未被 Dashboard/Report 消費） | [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md) |
-| 10 | Dashboard | 🟡 頁面殼 + 計時器卡片是真資料，其餘統計卡片/圖表仍是前端 mock（`dashboard-state.mjs`），尚未串接 `TimeAggregationService` | — |
+| 9 | TimeAggregationService | ✅ 完成，已被 Dashboard 消費（尚未被 Report 消費） | [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md) |
+| 10 | Dashboard | ✅ 完成，計時器卡片、統計卡片/圖表、最近活動皆為真實資料，mock data 已全部移除 | [`Docs/Dashboard.md`](Dashboard.md) |
 | 11 | Report | ❌ 未開始 | — |
 | 12 | Timezone settings | ✅ 完成（`/Settings` 頁面可選、持久化；Dashboard 計時器與 History List 尚未改用使用者設定的時區，見下方章節） | [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md) |
 | 13 | CSV export | ❌ 未開始 | — |
@@ -36,8 +36,8 @@
 | 16 | Nginx / EC2 / Backup | ❌ 未開始 | — |
 
 **建議下一步優先順序**（`Docs/TODO.md` 目前寫的）：
-1. Dashboard/Report 串接 `TimeAggregationService`（讓 Dashboard 統計卡片/圖表串接真實資料；`DashboardService`/`ReportService`/對應 Api Controller 仍是空殼）
-2. 重新檢視 Dashboard 計時器與 History List 目前用瀏覽器本地時區計算日期範圍的簡化做法，改用使用者在 `/Settings` 設定的時區
+1. Report（第 11 項）串接 `TimeAggregationService`，延續 `DashboardService` 的「只組裝、不重寫聚合邏輯」模式
+2. 重新檢視 Timer 卡片（`timer.js`）與 History List（`time-entry.js`）目前用瀏覽器本地時區計算日期範圍的簡化做法，改用使用者在 `/Settings` 設定的時區（Dashboard 的最近活動時間已經改用帳號時區，可參考同一個模式）
 3. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）
 
 ---
@@ -72,6 +72,21 @@
 
 ---
 
+## Dashboard（第 10 項）實作紀錄
+
+依照 [`Docs/superpowers/specs/2026-09-17-dashboard-design.md`](superpowers/specs/2026-09-17-dashboard-design.md) 完整實作，設計文件本身沒有 TBD，完整細節見獨立文件 [`Docs/Dashboard.md`](Dashboard.md)，這裡只記重點：
+
+- **`DashboardService` 只組裝，不重寫任何聚合邏輯**：本期與比較期都呼叫既有的 `TimeAggregationService`（`GetRangeForPreset`/`AggregateAsync`），最近五筆活動是獨立、不受選定範圍限制的查詢。Report（第 11 項）串接時應延續這個模式，不要在 `ReportService` 裡另外實作交集/DST/分桶邏輯。
+- **比較期演算法依模式分兩種**：Today/Week/Custom 用「相鄰、等長」（day count 相同），Month 用「前一個曆月」而非等長天數——因為月份長度不固定（9 月 30 天對 8 月 31 天），使用者比較的是行事曆月份。這是唯一能同時滿足設計文件「相鄰且等長」與「ThisMonth 對前一個曆月」兩種措辭的解讀，已用不同長度月份的組合寫測試驗證。
+- **preset 與 custom range 互斥**：`GET /api/dashboard` 只接受「恰好一種」合法範圍指定方式；兩者都給、都不給、preset 未知、custom 只給一半，一律 400 `INVALID_RANGE_PRESET`；custom 合法但 `endDate < startDate` 才是 400 `INVALID_DATE_RANGE`。
+- **前端 mock data 全部移除**：`dashboard-state.mjs` 從假資料模組改造成兩個純函式（`formatDuration`——現在吃秒數不是分鐘、`isValidDateRange`）的共用工具模組，繼續保留這個檔案（沒有整個刪掉）是因為它是唯一不依賴 `document` 的模組，`Tests/Unit/dashboard-frontend.test.mjs` 才能在 Node 環境下測試純邏輯。`dashboard.js` 改成對 `/api/dashboard` 發真實 fetch，用遞增 `requestId` 忽略較舊的回應；Timer 卡片完全沒有被觸碰，仍由 `timer.js` 獨立運作。
+- **最近活動的時間顯示已經改用帳號時區**（`Intl.DateTimeFormat` + 回應裡的 `timeZoneId`），是目前整個 Dashboard 唯一已經套用帳號時區顯示時間的地方；Timer 卡片即時顯示與 History List 的日期範圍篩選都還是舊的瀏覽器本地時區簡化，尚未改（見下方「建議下一步優先順序」第 2 項）。
+- **順手修好一個既有的測試錯誤**：`Tests/Unit/dashboard-frontend.test.mjs` 原本最後一個測試對共用版面 `_Layout.cshtml` 斷言含有 `dashboard.css`/`dashboard.js` 字樣，但這兩個資源其實是 `Views/Dashboard/Index.cshtml` 用 `@section Styles`/`@section Scripts` 載入的，共用版面從未直接出現這兩個檔名——這個斷言在改動前就是錯的（用 `node --test` 實際跑過原始檔驗證會失敗），不是這次改動造成的迴歸。已改成分別讀取兩個檔案各自斷言正確的內容。
+- **測試**：新增 `Tests/TimeEntryFlow.Tests/Integration/DashboardServiceTests.cs`（沿用 `TestDatabase` SQLite fixture），涵蓋 Today/Week/Month/Custom 比較期（含不同長度月份）、無效 preset/date range、preset 與 custom 同給、空資料、最近五筆排序、跨使用者隔離、Category/Tag totals 透傳。`Tests/TimeEntryFlow.Tests` 目前共 83 個測試全過；`dashboard-frontend.test.mjs` 用 `node --test` 執行，4 個測試全過。
+- **手動驗證**：本機啟動 `dotnet run --no-build`（port 5180），用 `curl` 建立 Category、一筆跨 UTC 午夜但落在同一個台北本地日的 TimeEntry，走過 `GET /api/dashboard` 的 today/week/month/custom/各種錯誤組合，並確認 `GET /Dashboard` 頁面正確接線 `dashboard.js`/`dashboard.css`/「查看全部」連結。這個 session 的環境沒有可用的瀏覽器自動化工具（`claude-in-chrome` 技能名稱有列出但實際呼叫時回報未知技能，`WebFetch` 明確不支援 localhost），因此桌面/320px 版面與實際點擊互動**沒有**在真的瀏覽器裡驗證過，接手後建議補這一步。驗證用的測試資料（Category、TimeEntry、帳號）已於驗證後刪除。
+
+---
+
 ## 已建立的架構慣例（新功能請比照辦理，不要另創一套）
 
 這些慣例是在做第 2～4 項的過程中逐步確立的，具有約束力，之後每一項都應該延續：
@@ -95,8 +110,8 @@
 
 - 每個主要頁面一支 `wwwroot/js/<page>.js`（ES module，`type="module"`），共用的 `callApi()` 寫法：非 GET 帶 `X-CSRF-TOKEN`（讀 `<meta name="csrf-token">`，由 `_Layout.cshtml`/`_AuthLayout.cshtml` 透過 `IAntiforgery.GetAndStoreTokens` 輸出）、`fetch` 回來 `.json().catch(() => null)`、失敗時 `throw new Error(payload?.detail ?? '發生錯誤，請稍後再試。')`。範例：`timer.js`、`time-entry.js`。
 - 標籤（Tag）chip 編輯器的 UI/互動模式已經定型（輸入框 + Enter 或按鈕加入、每個 chip 有 × 移除按鈕），`timer.js` 先做出來，`time-entry.js` 的新增/編輯表單直接複用同一套模式，之後如果要做 Tag 管理頁面，也建議延續。
-- **時區處理目前仍是刻意簡化，尚未完全收尾**：Settings/timezone（第 12 項）已完成，使用者可以在 `/Settings` 選擇並持久化自己的 `User.TimeZoneId`，`TimeAggregationService`（第 9 項）也已能用這個設定正確計算日期範圍。但 **Dashboard 計時器與 History List 這兩處的「今天/本週/本月」日期範圍計算，目前仍是各自用瀏覽器本地時區（`new Date()` + `.toISOString()`），還沒有改成呼叫 `TimeAggregationService`/讀取使用者設定的時區**——這是刻意留給 Dashboard/Report 串接 `TimeAggregationService`（下一步優先順序第 1、2 項）時一併處理，避免這次改動範圍超出設計文件。
-- Dashboard 的統計卡片/圖表（`dashboard.js` + `dashboard-state.mjs`）**刻意維持 mock data**，跟已經是真資料的計時器/History 明確切開，避免真假資料混在一起造成誤導。串接真實統計是 `TimeAggregationService`/`DashboardService`（第 9、10 項）的責任，不要在做其他功能時順手把 mock 資料跟真實資料摻在一起。
+- **時區處理仍未完全收尾，但已有進展**：Settings/timezone（第 12 項）與 Dashboard（第 10 項）都已完成，Dashboard 的統計卡片/圖表與最近活動時間都正確使用 `TimeAggregationService`/帳號時區。但 **Timer 卡片（`timer.js`）的即時顯示與 History List（`time-entry.js`）的「今天/本週/本月」日期範圍計算，目前仍是各自用瀏覽器本地時區（`new Date()` + `.toISOString()`），還沒有改成讀取使用者設定的時區**——這兩處已超出 Dashboard 設計文件範圍，留給後續專門處理（見「建議下一步優先順序」第 2 項）。
+- Dashboard 的統計卡片/圖表（`dashboard.js` + `dashboard-state.mjs`）**mock data 已全部移除**，改為對 `/api/dashboard` 發真實 fetch；`dashboard-state.mjs` 現在只保留 `formatDuration`/`isValidDateRange` 兩個純函式，細節見 [`Docs/Dashboard.md`](Dashboard.md)。
 
 ---
 
@@ -119,9 +134,9 @@
 
 ## 開始接手前建議的檢查清單
 
-1. `git log --oneline -5` 確認目前在 Timezone settings/TimeAggregationService 完成之後（若使用者又做了其他修改，先弄清楚差異）。
+1. `git log --oneline -5` 確認目前在 Dashboard 真實資料串接完成之後（若使用者又做了其他修改，先弄清楚差異）。
 2. 讀 `AGENTS.md` 全文一次（規則沒有變過，但務必自己確認，不要只信這份摘要）。
 3. 讀 `Docs/TODO.md` 確認目前狀態（這份文件比本摘要新，衝突時以 `TODO.md` 為準）。
-4. 依使用者這次想做的項目，讀對應的 `Docs/*.md` 設計文件（`JWT.md`／`RateLimitingAndAuthLogging.md`／`RunningTimerStartStop.md`／`TimeEntryCrud.md`／`superpowers/specs/2026-09-17-category-tag-management-design.md`／[`TimezoneAndAggregation.md`](TimezoneAndAggregation.md)）取得可重用的既有模式與已知的取捨/限制。
-5. 動工前先 `dotnet build "Lyubishchev Time Management.csproj"` 一次確認目前基準是綠的，再依序跑三個測試專案（`AuthFlow.Tests` 12 個、`TimerFlow.Tests` 7 個、`TimeEntryFlow.Tests` 70 個，最後這個數字最容易隨新功能成長，實際跑一次以現況為準）確認全過，作為「改動前」的基準線。
+4. 依使用者這次想做的項目，讀對應的 `Docs/*.md` 設計文件（`JWT.md`／`RateLimitingAndAuthLogging.md`／`RunningTimerStartStop.md`／`TimeEntryCrud.md`／`superpowers/specs/2026-09-17-category-tag-management-design.md`／[`TimezoneAndAggregation.md`](TimezoneAndAggregation.md)／[`Dashboard.md`](Dashboard.md)）取得可重用的既有模式與已知的取捨/限制。
+5. 動工前先 `dotnet build "Lyubishchev Time Management.csproj"` 一次確認目前基準是綠的，再依序跑三個測試專案（`AuthFlow.Tests`、`TimerFlow.Tests`、`TimeEntryFlow.Tests`，最後這個數字最容易隨新功能成長，實際跑一次以現況為準——完成 Dashboard 後是 83 個）確認全過，作為「改動前」的基準線；有動到 `wwwroot/js/dashboard*.mjs` 或 `Views/Dashboard`/`Views/Shared/_Layout.cshtml` 的話再額外跑 `node --test Tests/Unit/dashboard-frontend.test.mjs`。
 6. 做完之後：更新 `Docs/TODO.md`、視情況新增一份 `Docs/<功能名稱>.md`（比照既有文件的格式：設計思路 → 整體流程 → 檔案清單與內容 → 尚未涵蓋的部分），並在自動化測試全過之後，額外跑一次真實伺服器手動驗證再回報完成。

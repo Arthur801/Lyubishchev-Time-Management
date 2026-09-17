@@ -47,6 +47,7 @@ builder.Services.AddScoped<TagService>();
 builder.Services.AddSingleton<TimeZoneCatalog>();
 builder.Services.AddScoped<UserSettingsService>();
 builder.Services.AddScoped<TimeAggregationService>();
+builder.Services.AddScoped<DashboardService>();
 
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 

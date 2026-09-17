@@ -27,7 +27,7 @@
 
     <main class="dashboard-content" id="dashboard-content">
         <header class="page-heading">
-            <div><p class="eyebrow">時間總覽</p><h1>你的時間，正在累積。</h1><p id="range-label">今天 · 2026 年 9 月 17 日</p></div>
+            <div><p class="eyebrow">時間總覽</p><h1>你的時間，正在累積。</h1><p id="range-label">載入中…</p></div>
             <div class="range-controls" aria-label="選擇統計日期範圍">
                 <div class="range-presets" role="group" aria-label="快捷日期範圍">
                     <button type="button" class="range-button range-button--active" data-range="today" aria-pressed="true">今天</button>
@@ -36,8 +36,8 @@
                     <button type="button" class="range-button" id="range-custom" data-range="custom" aria-pressed="false">自訂</button>
                 </div>
                 <div class="custom-range" id="custom-range" hidden>
-                    <label>開始日期<input id="range-start" type="date" value="2026-09-14"></label>
-                    <label>結束日期<input id="range-end" type="date" value="2026-09-17"></label>
+                    <label>開始日期<input id="range-start" type="date"></label>
+                    <label>結束日期<input id="range-end" type="date"></label>
                     <button class="outline-button" id="apply-range" type="button">套用</button>
                 </div>
                 <p class="form-message" id="range-error" aria-live="polite"></p>
@@ -55,16 +55,16 @@
         </section>
 
         <section class="summary-grid" aria-label="本期統計摘要">
-            <article class="summary-card summary-card--primary"><p>本期總追蹤時間</p><strong id="total-duration">5 小時 0 分</strong><span id="change-summary">比昨天多 45 分</span></article>
-            <article class="summary-card"><p>最投入的分類</p><strong id="top-category">工作</strong><span id="top-category-duration">2 小時 40 分</span></article>
-            <article class="summary-card"><p>常用標籤</p><strong id="top-tag">深度工作</strong><span id="top-tag-duration">2 小時 0 分</span></article>
+            <article class="summary-card summary-card--primary"><p>本期總追蹤時間</p><strong id="total-duration">載入中…</strong><span id="change-summary"></span></article>
+            <article class="summary-card"><p>最投入的分類</p><strong id="top-category">—</strong><span id="top-category-duration"></span></article>
+            <article class="summary-card"><p>常用標籤</p><strong id="top-tag">—</strong><span id="top-tag-duration"></span></article>
         </section>
 
         <section class="analytics-grid" aria-label="時間分析">
             <article class="dashboard-panel dashboard-panel--trend"><header><div><p class="eyebrow">每日趨勢</p><h2>時間分布</h2></div><span class="panel-note">單位：小時</span></header><div id="trend-chart" class="trend-chart" role="img" aria-label="每日追蹤時間趨勢"></div><p id="trend-summary" class="visually-hidden" aria-live="polite"></p></article>
-            <article class="dashboard-panel"><header><div><p class="eyebrow">分類</p><h2>投入比例</h2></div></header><div class="donut-layout"><div id="category-donut" class="category-donut" role="img" aria-label="分類時間分布"><span id="donut-total">5 小時</span></div><ul id="category-legend" class="chart-legend"></ul></div></article>
+            <article class="dashboard-panel"><header><div><p class="eyebrow">分類</p><h2>投入比例</h2></div></header><div class="donut-layout"><div id="category-donut" class="category-donut" role="img" aria-label="分類時間分布"><span id="donut-total"></span></div><ul id="category-legend" class="chart-legend"></ul></div></article>
             <article class="dashboard-panel"><header><div><p class="eyebrow">標籤</p><h2>關注主題</h2></div><span class="panel-note">可重複累計</span></header><div id="tag-chart" class="tag-chart" role="img" aria-label="標籤時間分布"></div></article>
-            <article class="dashboard-panel dashboard-panel--recent"><header><div><p class="eyebrow">最近活動</p><h2>剛完成的紀錄</h2></div><a href="#" class="text-link">查看全部</a></header><ol id="recent-list" class="recent-list"></ol></article>
+            <article class="dashboard-panel dashboard-panel--recent"><header><div><p class="eyebrow">最近活動</p><h2>剛完成的紀錄</h2></div><a asp-controller="TimeEntry" asp-action="Index" class="text-link">查看全部</a></header><ol id="recent-list" class="recent-list"></ol></article>
         </section>
     </main>
 
