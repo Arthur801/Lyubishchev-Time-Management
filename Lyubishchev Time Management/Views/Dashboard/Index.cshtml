@@ -15,7 +15,7 @@
             <a class="app-nav__link" href="#"><span aria-hidden="true">▥</span>報表</a>
             <a class="app-nav__link" asp-controller="Category" asp-action="Index"><span aria-hidden="true">◌</span>分類</a>
             <a class="app-nav__link" asp-controller="Tag" asp-action="Index"><span aria-hidden="true">#</span>標籤</a>
-            <a class="app-nav__link" href="#"><span aria-hidden="true">⚙</span>設定</a>
+            <a class="app-nav__link" asp-controller="Settings" asp-action="Index"><span aria-hidden="true">⚙</span>設定</a>
         </nav>
         <a class="app-nav__link app-nav__link--logout" href="#"><span aria-hidden="true">↗</span>登出</a>
     </aside>
@@ -68,7 +68,7 @@
         </section>
     </main>
 
-    <nav class="mobile-nav" aria-label="行動裝置主要導覽"><a class="mobile-nav__link mobile-nav__link--active" href="#dashboard-content" aria-current="page">◈<span>總覽</span></a><a class="mobile-nav__link" asp-controller="TimeEntry" asp-action="Index">◷<span>紀錄</span></a><a class="mobile-nav__link" href="#">▥<span>報表</span></a><a class="mobile-nav__link" href="#">⚙<span>設定</span></a></nav>
+    <nav class="mobile-nav" aria-label="行動裝置主要導覽"><a class="mobile-nav__link mobile-nav__link--active" href="#dashboard-content" aria-current="page">◈<span>總覽</span></a><a class="mobile-nav__link" asp-controller="TimeEntry" asp-action="Index">◷<span>紀錄</span></a><a class="mobile-nav__link" href="#">▥<span>報表</span></a><a class="mobile-nav__link" asp-controller="Settings" asp-action="Index">⚙<span>設定</span></a></nav>
 </div>
 
 @section Scripts {
