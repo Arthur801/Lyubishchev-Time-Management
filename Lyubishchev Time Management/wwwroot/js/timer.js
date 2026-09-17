@@ -3,6 +3,7 @@ const timerCard = document.querySelector('#dashboard-page .timer-card');
 if (timerCard) {
   const $ = (selector) => timerCard.querySelector(selector);
   const nameInput = $('#timer-name');
+  const categorySelect = $('#timer-category');
   const tagList = $('#timer-tags');
   const tagInput = $('#tag-input');
   const addTagButton = $('#add-tag');
@@ -62,6 +63,27 @@ if (timerCard) {
       .join('');
   }
 
+  async function loadCategories() {
+    let categories = [];
+    try {
+      categories = await callApi('/api/categories');
+    } catch {
+      categories = [];
+    }
+
+    categorySelect.innerHTML = '';
+    const blank = document.createElement('option');
+    blank.value = '';
+    blank.textContent = '未分類';
+    categorySelect.appendChild(blank);
+    categories.forEach((category) => {
+      const option = document.createElement('option');
+      option.value = String(category.id);
+      option.textContent = category.name;
+      categorySelect.appendChild(option);
+    });
+  }
+
   async function loadStatus() {
     try {
       const timer = await callApi('/api/timer');
@@ -94,8 +116,18 @@ if (timerCard) {
   async function stopTimer() {
     toggleButton.disabled = true;
     try {
-      await callApi('/api/timer/stop', { method: 'POST', body: { name: nameInput.value.trim() } });
+      await callApi('/api/timer/stop', {
+        method: 'POST',
+        body: {
+          name: nameInput.value.trim(),
+          categoryId: categorySelect.value ? Number(categorySelect.value) : null,
+          tags: state.tags,
+        },
+      });
       nameInput.value = '';
+      categorySelect.value = '';
+      state.tags = [];
+      renderTags();
       renderIdle();
     } catch (error) {
       status.textContent = error.message;
@@ -132,4 +164,5 @@ if (timerCard) {
   window.setInterval(tick, 1000);
   renderTags();
   loadStatus();
+  loadCategories();
 }

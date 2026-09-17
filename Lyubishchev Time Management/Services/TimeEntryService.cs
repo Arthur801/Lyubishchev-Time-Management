@@ -210,10 +210,13 @@ public sealed class TimeEntryService(AppDbContext dbContext, IClock clock)
             .Select(c => new CategoryOption(c.Id, c.Name, c.Color))
             .ToListAsync(cancellationToken);
 
-    private async Task<Category?> GetOwnedCategoryAsync(ulong userId, ulong categoryId, CancellationToken cancellationToken)
+    // Internal (not private): TimerService reuses this and the two tag helpers below when
+    // attaching a Category/Tags to the TimeEntry created by Stop Timer, so the ownership check and
+    // the tag find-or-create race handling aren't duplicated in a second place.
+    internal async Task<Category?> GetOwnedCategoryAsync(ulong userId, ulong categoryId, CancellationToken cancellationToken)
         => await dbContext.Categories.AsNoTracking().SingleOrDefaultAsync(c => c.Id == categoryId && c.UserId == userId, cancellationToken);
 
-    private static List<(string Name, string NormalizedName)> NormalizeTagNames(List<string>? rawNames)
+    internal static List<(string Name, string NormalizedName)> NormalizeTagNames(List<string>? rawNames)
     {
         if (rawNames is null or { Count: 0 })
         {
@@ -230,7 +233,7 @@ public sealed class TimeEntryService(AppDbContext dbContext, IClock clock)
             .ToList();
     }
 
-    private async Task<List<Tag>> FindOrCreateTagsAsync(
+    internal async Task<List<Tag>> FindOrCreateTagsAsync(
         ulong userId, IReadOnlyCollection<(string Name, string NormalizedName)> tagNames, CancellationToken cancellationToken)
     {
         if (tagNames.Count == 0)

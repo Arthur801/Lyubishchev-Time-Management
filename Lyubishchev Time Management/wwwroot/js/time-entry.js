@@ -94,7 +94,7 @@ if (page) {
         <div class="entry-meta">${tagsMarkup}</div>
       </div>
       <span class="entry-time">${formatTimeOfDayInZone(entry.startTimeUtc, state.timeZoneId)} – ${formatTimeOfDayInZone(entry.endTimeUtc, state.timeZoneId)}</span>
-      <span class="entry-duration">${formatDuration(entry.durationSeconds / 60)}</span>
+      <span class="entry-duration">${formatDuration(entry.durationSeconds)}</span>
       <div class="entry-actions">
         <button class="icon-btn" type="button" data-edit="${entry.id}" aria-label="編輯「${name}」">✎</button>
         <button class="icon-btn icon-btn--danger" type="button" data-delete="${entry.id}" aria-label="刪除「${name}」">✕</button>
@@ -117,9 +117,9 @@ if (page) {
     $('#entry-groups').innerHTML = dates
       .map((dateKey) => {
         const entries = byDate.get(dateKey);
-        const totalMinutes = entries.reduce((sum, entry) => sum + entry.durationSeconds / 60, 0);
+        const totalSeconds = entries.reduce((sum, entry) => sum + entry.durationSeconds, 0);
         return `<div class="date-group">
-          <div class="date-group__heading"><strong>${formatGroupHeading(dateKey)}</strong><span>${formatDuration(totalMinutes)}</span></div>
+          <div class="date-group__heading"><strong>${formatGroupHeading(dateKey)}</strong><span>${formatDuration(totalSeconds)}</span></div>
           <ul class="date-group__list">${entries.map(renderEntryRow).join('')}</ul>
         </div>`;
       })

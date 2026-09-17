@@ -39,12 +39,15 @@ public sealed class TimerApiController(TimerService timerService, CurrentUserSer
             return ValidationProblem(ModelState);
         }
 
-        var result = await timerService.StopAsync(currentUserService.GetRequiredUserId(), request.Name, cancellationToken);
-        if (!result.Succeeded)
-        {
-            return Problem(detail: result.ErrorMessage, statusCode: StatusCodes.Status404NotFound, title: result.ErrorCode);
-        }
-
-        return Ok(result.TimeEntry);
+        var result = await timerService.StopAsync(
+            currentUserService.GetRequiredUserId(), request.Name, request.CategoryId, request.Tags, cancellationToken);
+        return result.Succeeded ? Ok(result.TimeEntry) : MapFailure(result.ErrorCode!, result.ErrorMessage!);
     }
+
+    private IActionResult MapFailure(string errorCode, string errorMessage) => errorCode switch
+    {
+        "TIMER_NOT_RUNNING" => Problem(detail: errorMessage, statusCode: StatusCodes.Status404NotFound, title: errorCode),
+        "CATEGORY_NOT_FOUND" => Problem(detail: errorMessage, statusCode: StatusCodes.Status404NotFound, title: errorCode),
+        _ => Problem(detail: errorMessage, statusCode: StatusCodes.Status500InternalServerError, title: errorCode),
+    };
 }

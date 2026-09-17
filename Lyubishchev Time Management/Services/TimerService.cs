@@ -20,7 +20,7 @@ public sealed record StopTimerResult(bool Succeeded, TimeEntryResponse? TimeEntr
     public static StopTimerResult Fail(string errorCode, string errorMessage) => new(false, null, errorCode, errorMessage);
 }
 
-public sealed class TimerService(AppDbContext dbContext, IClock clock)
+public sealed class TimerService(AppDbContext dbContext, IClock clock, TimeEntryService entryService)
 {
     public async Task<TimerResponse> GetStatusAsync(ulong userId, CancellationToken cancellationToken)
     {
@@ -58,7 +58,7 @@ public sealed class TimerService(AppDbContext dbContext, IClock clock)
         return TimerResult.Ok(new TimerResponse(true, startedAtUtc));
     }
 
-    public async Task<StopTimerResult> StopAsync(ulong userId, string? name, CancellationToken cancellationToken)
+    public async Task<StopTimerResult> StopAsync(ulong userId, string? name, ulong? categoryId, List<string>? tagNames, CancellationToken cancellationToken)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
@@ -69,6 +69,19 @@ public sealed class TimerService(AppDbContext dbContext, IClock clock)
         {
             return StopTimerResult.Fail("TIMER_NOT_RUNNING", "目前沒有正在執行的計時器。");
         }
+
+        Category? category = null;
+        if (categoryId is not null)
+        {
+            category = await entryService.GetOwnedCategoryAsync(userId, categoryId.Value, cancellationToken);
+            if (category is null)
+            {
+                return StopTimerResult.Fail("CATEGORY_NOT_FOUND", "找不到指定的分類。");
+            }
+        }
+
+        var normalizedTagNames = TimeEntryService.NormalizeTagNames(tagNames);
+        var tags = await entryService.FindOrCreateTagsAsync(userId, normalizedTagNames, cancellationToken);
 
         var endTimeUtc = clock.UtcNow;
         if (endTimeUtc <= runningTimer.StartedAtUtc)
@@ -84,10 +97,15 @@ public sealed class TimerService(AppDbContext dbContext, IClock clock)
             Name = string.IsNullOrWhiteSpace(name) ? null : name.Trim(),
             StartTimeUtc = runningTimer.StartedAtUtc,
             EndTimeUtc = endTimeUtc,
+            CategoryId = category?.Id,
             CreatedAtUtc = endTimeUtc,
             UpdatedAtUtc = endTimeUtc,
             User = null!,
         };
+        foreach (var tag in tags)
+        {
+            timeEntry.TimeEntryTags.Add(new TimeEntryTag { TimeEntry = timeEntry, Tag = tag });
+        }
 
         dbContext.TimeEntries.Add(timeEntry);
         dbContext.RunningTimers.Remove(runningTimer);
@@ -116,9 +134,9 @@ public sealed class TimerService(AppDbContext dbContext, IClock clock)
             timeEntry.StartTimeUtc,
             timeEntry.EndTimeUtc,
             timeEntry.CategoryId,
-            CategoryName: null,
-            CategoryColor: null,
-            Tags: [],
+            CategoryName: category?.Name,
+            CategoryColor: category?.Color,
+            Tags: tags.Select(t => t.Name).OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList(),
             (long)(timeEntry.EndTimeUtc - timeEntry.StartTimeUtc).TotalSeconds));
     }
 }

@@ -47,8 +47,8 @@
         <section class="timer-card" aria-labelledby="timer-heading">
             <div class="timer-card__intro"><p class="eyebrow">現在正在記錄</p><h2 id="timer-heading">把注意力留給一件事</h2></div>
             <div class="timer-card__fields">
-                <label>活動名稱<input id="timer-name" type="text" value="整理本週筆記" maxlength="80"></label>
-                <label>分類<select id="timer-category"><option>工作</option><option>學習</option><option>生活</option><option>未分類</option></select></label>
+                <label>活動名稱<input id="timer-name" type="text" maxlength="80"></label>
+                <label>分類<select id="timer-category"><option value="">未分類</option></select></label>
                 <div class="tag-editor"><span class="field-label">標籤</span><div id="timer-tags" class="tag-list" aria-label="目前標籤"></div><div class="add-tag"><input id="tag-input" type="text" maxlength="24" placeholder="新增標籤"><button id="add-tag" type="button">加入</button></div></div>
             </div>
             <div class="timer-card__action"><p class="timer-status" id="timer-status" aria-live="polite">尚未開始計時</p><output class="timer-display" id="timer-display" aria-label="計時時間">00:00:00</output><button class="timer-toggle" id="timer-toggle" type="button" aria-pressed="false">開始計時</button></div>

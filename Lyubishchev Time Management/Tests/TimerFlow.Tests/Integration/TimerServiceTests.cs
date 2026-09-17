@@ -44,6 +44,8 @@ public sealed class TimerServiceTests
         return (keepAlive, options, userId);
     }
 
+    private static TimerService CreateService(AppDbContext dbContext, TestClock clock) => new(dbContext, clock, new TimeEntryService(dbContext, clock));
+
     [Fact]
     public async Task StartAsync_starts_timer_when_none_is_running()
     {
@@ -51,7 +53,7 @@ public sealed class TimerServiceTests
         await using var _ = keepAlive;
         await using var dbContext = new AppDbContext(options);
         var clock = new TestClock(new DateTime(2026, 1, 1, 10, 0, 0, DateTimeKind.Utc));
-        var service = new TimerService(dbContext, clock);
+        var service = CreateService(dbContext, clock);
 
         var result = await service.StartAsync(userId, CancellationToken.None);
 
@@ -67,7 +69,7 @@ public sealed class TimerServiceTests
         var (keepAlive, options, userId) = await CreateSharedDatabaseAsync();
         await using var _ = keepAlive;
         await using var dbContext = new AppDbContext(options);
-        var service = new TimerService(dbContext, new TestClock(DateTime.UtcNow));
+        var service = CreateService(dbContext, new TestClock(DateTime.UtcNow));
 
         await service.StartAsync(userId, CancellationToken.None);
         var result = await service.StartAsync(userId, CancellationToken.None);
@@ -84,7 +86,7 @@ public sealed class TimerServiceTests
         await using var _ = keepAlive;
         await using var dbContext = new AppDbContext(options);
         var clock = new TestClock(DateTime.UtcNow);
-        var service = new TimerService(dbContext, clock);
+        var service = CreateService(dbContext, clock);
 
         var beforeStart = await service.GetStatusAsync(userId, CancellationToken.None);
         await service.StartAsync(userId, CancellationToken.None);
@@ -102,9 +104,9 @@ public sealed class TimerServiceTests
         var (keepAlive, options, userId) = await CreateSharedDatabaseAsync();
         await using var _ = keepAlive;
         await using var dbContext = new AppDbContext(options);
-        var service = new TimerService(dbContext, new TestClock(DateTime.UtcNow));
+        var service = CreateService(dbContext, new TestClock(DateTime.UtcNow));
 
-        var result = await service.StopAsync(userId, "test", CancellationToken.None);
+        var result = await service.StopAsync(userId, "test", null, null, CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.Equal("TIMER_NOT_RUNNING", result.ErrorCode);
@@ -117,11 +119,11 @@ public sealed class TimerServiceTests
         await using var _ = keepAlive;
         await using var dbContext = new AppDbContext(options);
         var clock = new TestClock(new DateTime(2026, 1, 1, 9, 0, 0, DateTimeKind.Utc));
-        var service = new TimerService(dbContext, clock);
+        var service = CreateService(dbContext, clock);
 
         await service.StartAsync(userId, CancellationToken.None);
         clock.UtcNow = clock.UtcNow.AddMinutes(25);
-        var result = await service.StopAsync(userId, "  深度工作  ", CancellationToken.None);
+        var result = await service.StopAsync(userId, "  深度工作  ", null, null, CancellationToken.None);
 
         Assert.True(result.Succeeded);
         Assert.Equal("深度工作", result.TimeEntry!.Name);
@@ -139,13 +141,75 @@ public sealed class TimerServiceTests
         await using var _ = keepAlive;
         await using var dbContext = new AppDbContext(options);
         var clock = new TestClock(new DateTime(2026, 1, 1, 9, 0, 0, DateTimeKind.Utc));
-        var service = new TimerService(dbContext, clock);
+        var service = CreateService(dbContext, clock);
 
         await service.StartAsync(userId, CancellationToken.None);
-        var result = await service.StopAsync(userId, null, CancellationToken.None);
+        var result = await service.StopAsync(userId, null, null, null, CancellationToken.None);
 
         Assert.True(result.Succeeded);
         Assert.True(result.TimeEntry!.EndTimeUtc > result.TimeEntry.StartTimeUtc);
+    }
+
+    [Fact]
+    public async Task StopAsync_attaches_the_callers_own_category()
+    {
+        var (keepAlive, options, userId) = await CreateSharedDatabaseAsync();
+        await using var _ = keepAlive;
+        await using var dbContext = new AppDbContext(options);
+        var category = new Category { UserId = userId, Name = "Focus", NormalizedName = "FOCUS", Color = "#e5533d", CreatedAtUtc = DateTime.UtcNow, UpdatedAtUtc = DateTime.UtcNow, User = null! };
+        dbContext.Categories.Add(category);
+        await dbContext.SaveChangesAsync();
+        var service = CreateService(dbContext, new TestClock(DateTime.UtcNow));
+
+        await service.StartAsync(userId, CancellationToken.None);
+        var result = await service.StopAsync(userId, null, category.Id, null, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(category.Id, result.TimeEntry!.CategoryId);
+        Assert.Equal("Focus", result.TimeEntry.CategoryName);
+        Assert.Equal("#e5533d", result.TimeEntry.CategoryColor);
+    }
+
+    [Fact]
+    public async Task StopAsync_rejects_a_category_owned_by_another_user_and_leaves_the_timer_running()
+    {
+        var (keepAlive, options, userId) = await CreateSharedDatabaseAsync();
+        await using var _ = keepAlive;
+        await using var dbContext = new AppDbContext(options);
+        var otherUser = new User { Email = $"{Guid.NewGuid():N}@example.com", PasswordHash = "x", TimeZoneId = "Asia/Taipei", CreatedAtUtc = DateTime.UtcNow, UpdatedAtUtc = DateTime.UtcNow };
+        dbContext.Users.Add(otherUser);
+        await dbContext.SaveChangesAsync();
+        var othersCategory = new Category { UserId = otherUser.Id, Name = "Private", NormalizedName = "PRIVATE", Color = "#000000", CreatedAtUtc = DateTime.UtcNow, UpdatedAtUtc = DateTime.UtcNow, User = null! };
+        dbContext.Categories.Add(othersCategory);
+        await dbContext.SaveChangesAsync();
+        var service = CreateService(dbContext, new TestClock(DateTime.UtcNow));
+
+        await service.StartAsync(userId, CancellationToken.None);
+        var result = await service.StopAsync(userId, null, othersCategory.Id, null, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("CATEGORY_NOT_FOUND", result.ErrorCode);
+        Assert.Equal(1, await dbContext.RunningTimers.CountAsync());
+        Assert.Equal(0, await dbContext.TimeEntries.CountAsync());
+    }
+
+    [Fact]
+    public async Task StopAsync_finds_or_creates_tags_by_normalized_name()
+    {
+        var (keepAlive, options, userId) = await CreateSharedDatabaseAsync();
+        await using var _ = keepAlive;
+        await using var dbContext = new AppDbContext(options);
+        var existing = new Tag { UserId = userId, Name = "Deep Work", NormalizedName = "DEEP WORK", CreatedAtUtc = DateTime.UtcNow, UpdatedAtUtc = DateTime.UtcNow, User = null! };
+        dbContext.Tags.Add(existing);
+        await dbContext.SaveChangesAsync();
+        var service = CreateService(dbContext, new TestClock(DateTime.UtcNow));
+
+        await service.StartAsync(userId, CancellationToken.None);
+        var result = await service.StopAsync(userId, null, null, [" deep work ", "urgent"], CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(["Deep Work", "urgent"], result.TimeEntry!.Tags.OrderBy(t => t, StringComparer.OrdinalIgnoreCase));
+        Assert.Equal(2, await dbContext.Tags.CountAsync());
     }
 
     [Fact]
@@ -165,8 +229,8 @@ public sealed class TimerServiceTests
         async Task<StopTimerResult> StopFromNewContextAsync(string name)
         {
             await using var dbContext = new AppDbContext(options);
-            var service = new TimerService(dbContext, clock);
-            return await service.StopAsync(userId, name, CancellationToken.None);
+            var service = CreateService(dbContext, clock);
+            return await service.StopAsync(userId, name, null, null, CancellationToken.None);
         }
 
         // Real parallel execution against the same shared-cache database: SQLite serializes the
