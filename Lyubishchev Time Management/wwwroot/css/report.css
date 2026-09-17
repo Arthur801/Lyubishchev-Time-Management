@@ -1,0 +1,3 @@
+.report-content{padding-bottom:56px}
+.report-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
+@media(max-width:900px){.report-grid{grid-template-columns:1fr}}

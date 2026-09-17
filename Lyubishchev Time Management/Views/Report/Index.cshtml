@@ -1,0 +1,70 @@
+@{
+    ViewData["Title"] = "報表";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/report.css" asp-append-version="true" />
+}
+
+<div class="dashboard-page" id="report-page">
+    <aside class="app-sidebar" aria-label="主要導覽">
+        <a class="app-brand" asp-controller="Dashboard" asp-action="Index" aria-label="LTM 儀表板"><span>LTM</span><small>TIME LOG</small></a>
+        <nav class="app-nav">
+            <a class="app-nav__link" asp-controller="Dashboard" asp-action="Index"><span aria-hidden="true">◈</span>儀表板</a>
+            <a class="app-nav__link" asp-controller="TimeEntry" asp-action="Index"><span aria-hidden="true">◷</span>歷史紀錄</a>
+            <a class="app-nav__link app-nav__link--active" asp-controller="Report" asp-action="Index" aria-current="page"><span aria-hidden="true">▥</span>報表</a>
+            <a class="app-nav__link" asp-controller="Category" asp-action="Index"><span aria-hidden="true">◌</span>分類</a>
+            <a class="app-nav__link" asp-controller="Tag" asp-action="Index"><span aria-hidden="true">#</span>標籤</a>
+            <a class="app-nav__link" asp-controller="Settings" asp-action="Index"><span aria-hidden="true">⚙</span>設定</a>
+        </nav>
+        <a class="app-nav__link app-nav__link--logout" href="#"><span aria-hidden="true">↗</span>登出</a>
+    </aside>
+
+    <header class="mobile-header">
+        <a class="app-brand" asp-controller="Dashboard" asp-action="Index" aria-label="LTM 儀表板"><span>LTM</span><small>TIME LOG</small></a>
+        <button class="icon-button" type="button" aria-label="開啟設定">⚙</button>
+    </header>
+
+    <main class="dashboard-content report-content" id="report-content">
+        <header class="page-heading">
+            <div><p class="eyebrow">時間分布</p><h1>看清楚時間都花在哪。</h1><p id="report-range-label">載入中…</p></div>
+            <div class="range-controls" aria-label="選擇統計日期範圍">
+                <div class="range-presets" role="group" aria-label="快捷日期範圍">
+                    <button type="button" class="range-button" data-range="today" aria-pressed="false">今天</button>
+                    <button type="button" class="range-button" data-range="week" aria-pressed="false">本週</button>
+                    <button type="button" class="range-button range-button--active" data-range="month" aria-pressed="true">本月</button>
+                    <button type="button" class="range-button" id="range-custom" data-range="custom" aria-pressed="false">自訂</button>
+                </div>
+                <div class="custom-range" id="custom-range" hidden>
+                    <label>開始日期<input id="range-start" type="date"></label>
+                    <label>結束日期<input id="range-end" type="date"></label>
+                    <button class="outline-button" id="apply-range" type="button">套用</button>
+                </div>
+                <p class="form-message" id="report-range-error" aria-live="polite"></p>
+            </div>
+        </header>
+
+        <section class="report-grid" aria-label="分類與標籤時間分布">
+            <article class="dashboard-panel" aria-labelledby="category-report-heading">
+                <header><div><p class="eyebrow">分類</p><h2 id="category-report-heading">投入比例</h2></div></header>
+                <div class="donut-layout"><div id="category-donut" class="category-donut" role="img" aria-label="分類時間分布"><span id="donut-total"></span></div><ul id="category-legend" class="chart-legend"></ul></div>
+            </article>
+            <article class="dashboard-panel" aria-labelledby="tag-report-heading">
+                <header><div><p class="eyebrow">標籤</p><h2 id="tag-report-heading">關注主題</h2></div><span class="panel-note">可重複累計</span></header>
+                <div id="tag-chart" class="tag-chart" role="img" aria-label="標籤時間分布"></div>
+            </article>
+        </section>
+    </main>
+
+    <nav class="mobile-nav" aria-label="行動裝置主要導覽">
+        <a class="mobile-nav__link" asp-controller="Dashboard" asp-action="Index">◈<span>總覽</span></a>
+        <a class="mobile-nav__link" asp-controller="TimeEntry" asp-action="Index">◷<span>紀錄</span></a>
+        <a class="mobile-nav__link mobile-nav__link--active" asp-controller="Report" asp-action="Index" aria-current="page">▥<span>報表</span></a>
+        <a class="mobile-nav__link" asp-controller="Settings" asp-action="Index">⚙<span>設定</span></a>
+    </nav>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/js/report.js" asp-append-version="true"></script>
+}

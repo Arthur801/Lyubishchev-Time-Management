@@ -1,6 +1,6 @@
 # TODO List
 
-依照 `AGENTS.md` / `Docs/system_design_document.md` 的 Implementation Order 整理，最後更新於 2026-09-17。JWT Cookie 驗證流程已於 `feat/jwt-cookie-auth-flow` 分支完成並合併進 `main`，細節請見 [`Docs/JWT.md`](JWT.md)。Login/Register rate limiting 與 auth failure 記錄已完成，細節請見 [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md)。RunningTimer Start/Stop 核心計時功能已完成，細節請見 [`Docs/RunningTimerStartStop.md`](RunningTimerStartStop.md)。Manual TimeEntry CRUD（含 Category 指派、Tag inline 建立、History List 前端）已完成，細節請見 [`Docs/TimeEntryCrud.md`](TimeEntryCrud.md)。Category、Tag 獨立管理頁面與 CRUD API 已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-category-tag-management-design.md`](superpowers/specs/2026-09-17-category-tag-management-design.md)，實作細節見 `Docs/HANDOFF.md`。Timezone settings 與 TimeAggregationService 已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-timezone-and-aggregation-design.md`](superpowers/specs/2026-09-17-timezone-and-aggregation-design.md)，實作細節見 [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md)。Dashboard 真實資料串接已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-dashboard-design.md`](superpowers/specs/2026-09-17-dashboard-design.md)，實作細節見 [`Docs/Dashboard.md`](Dashboard.md)。
+依照 `AGENTS.md` / `Docs/system_design_document.md` 的 Implementation Order 整理，最後更新於 2026-09-17。JWT Cookie 驗證流程已於 `feat/jwt-cookie-auth-flow` 分支完成並合併進 `main`，細節請見 [`Docs/JWT.md`](JWT.md)。Login/Register rate limiting 與 auth failure 記錄已完成，細節請見 [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md)。RunningTimer Start/Stop 核心計時功能已完成，細節請見 [`Docs/RunningTimerStartStop.md`](RunningTimerStartStop.md)。Manual TimeEntry CRUD（含 Category 指派、Tag inline 建立、History List 前端）已完成，細節請見 [`Docs/TimeEntryCrud.md`](TimeEntryCrud.md)。Category、Tag 獨立管理頁面與 CRUD API 已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-category-tag-management-design.md`](superpowers/specs/2026-09-17-category-tag-management-design.md)，實作細節見 `Docs/HANDOFF.md`。Timezone settings 與 TimeAggregationService 已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-timezone-and-aggregation-design.md`](superpowers/specs/2026-09-17-timezone-and-aggregation-design.md)，實作細節見 [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md)。Dashboard 真實資料串接已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-dashboard-design.md`](superpowers/specs/2026-09-17-dashboard-design.md)，實作細節見 [`Docs/Dashboard.md`](Dashboard.md)。Report（Category 圓餅圖、Tag 長條圖）已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-report-design.md`](superpowers/specs/2026-09-17-report-design.md)，實作細節見 [`Docs/Report.md`](Report.md)。
 
 狀態標記：`[x]` 完成、`[~]` 部分完成、`[ ]` 未開始
 
@@ -70,10 +70,11 @@
 - 詳細實作說明見 [`Docs/Dashboard.md`](Dashboard.md)
 
 ## 11. Report
-- [ ] `Services/ReportService.cs`（空殼）
-- [ ] `Controllers/ReportController.cs`（空殼，無 View）
-- [ ] `Controllers/Api/ReportApiController.cs`（空殼，`/api/reports/category`、`/api/reports/tag` 未實作）
-- [ ] Category 圓餅圖、Tag 長條圖尚未開始
+- [x] `Services/ReportService.cs`（`GetCategoryAsync`/`GetTagAsync`：只轉接 preset/custom range 給 `TimeAggregationService`，不重寫任何聚合邏輯；preset/custom 互斥驗證與 `DashboardService` 一致，唯一差異是缺省時 preset 預設 `month` 而非回錯）
+- [x] `Controllers/ReportController.cs` + `Views/Report/Index.cshtml`（受 `[Authorize]` 保護的頁面殼，Category 圓餅圖 + Tag 長條圖，桌面雙欄／900px 以下單欄堆疊）
+- [x] `Controllers/Api/ReportApiController.cs`（`GET /api/reports/category`、`GET /api/reports/tag`，`[Authorize]`，400 `INVALID_RANGE_PRESET`/`INVALID_DATE_RANGE`）
+- [x] `wwwroot/js/report.js`（平行呼叫兩端點、request sequence 忽略舊回應、Category legend 顯示百分比、Tag bar 不顯示百分比）+ `wwwroot/css/report.css`
+- 詳細實作說明見 [`Docs/Report.md`](Report.md)
 
 ## 12. Timezone settings
 - [x] `Services/UserSettingsService.cs`（`GetAsync`/`UpdateAsync`，以 `TimeZoneCatalog` 白名單驗證，只改 `User.TimeZoneId`/`UpdatedAtUtc`，不動任何 `TimeEntry` UTC 欄位）
@@ -90,7 +91,7 @@
 ## 14. RWD
 - [x] Dashboard / History / Login / Register 頁面已有響應式樣式（各自頁面 CSS 內的 media query）
 - [ ] `wwwroot/css/responsive.css` 目前為空檔案且未使用，樣式分散在各頁面 CSS 中，與文件建議的集中管理方式不同（非必要修正，功能上不算錯）
-- [ ] Calendar / Report 等尚未建立頁面的 RWD 待補
+- [x] Report 頁面已有響應式樣式（`report.css`，桌面雙欄／900px 以下單欄堆疊，沿用 `dashboard.css` 的 donut/legend/tag-chart 元件）
 
 ## 15. Error handling / Logging / Rate limit
 - [ ] 全域例外處理（Global Exception Handler）尚未確認是否已設定
@@ -110,7 +111,8 @@
 - [x] Integration Tests：TimeEntry CRUD、Category 刪除 SET NULL、Tag 刪除只移除關聯、跨使用者存取拒絕已完成（`Tests/TimeEntryFlow.Tests`，細節見 [`Docs/TimeEntryCrud.md`](TimeEntryCrud.md)）
 - [x] Integration Tests：Category/Tag 管理（唯一鍵衝突、跨使用者拒絕、併發重複建立、刪除語意）已完成，使用共用的 `TestDatabase` SQLite in-memory fixture
 - [x] Integration/Unit Tests：Timezone settings、TimeAggregationService（白名單、跨使用者隔離、跨午夜切分、DST 春季/秋季整天時長、未分類桶、Category/Tag 聚合）已完成，細節見 [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md)
-- [x] Integration Tests：Dashboard（Today/Week/Month/Custom 比較期、不同長度月份、無效 preset/date range、preset 與 custom 同給、空資料、最近五筆排序、跨使用者隔離、Category/Tag totals 透傳）已完成，`Tests/TimeEntryFlow.Tests` 目前共 83 個測試，細節見 [`Docs/Dashboard.md`](Dashboard.md)。前端純函式與靜態標記另有 `Tests/Unit/dashboard-frontend.test.mjs`（Node `node:test`，4 個測試）
+- [x] Integration Tests：Dashboard（Today/Week/Month/Custom 比較期、不同長度月份、無效 preset/date range、preset 與 custom 同給、空資料、最近五筆排序、跨使用者隔離、Category/Tag totals 透傳）已完成，細節見 [`Docs/Dashboard.md`](Dashboard.md)。前端純函式與靜態標記另有 `Tests/Unit/dashboard-frontend.test.mjs`（Node `node:test`，4 個測試）
+- [x] Integration Tests：Report（preset 缺省時預設 month、today/week/month preset、custom range、preset 與 custom 同給/半給皆無效、無效日期範圍、Uncategorized 顏色、Tag additive 加總與排序、空資料、跨使用者隔離、Category 排序）已完成，`Tests/TimeEntryFlow.Tests` 目前共 97 個測試，細節見 [`Docs/Report.md`](Report.md)
 - [x] Unit Tests：Calendar View 的跨午夜切段與重疊分欄純函式（`Tests/Unit/calendar-state.test.mjs`，5 個測試）、`timezone.mjs` 新增的日期運算函式（`Tests/Unit/timezone.test.mjs`，新增 4 個測試），細節見 [`Docs/CalendarView.md`](CalendarView.md)。`Tests/Unit/` 目前共 23 個 Node 測試（`node --test Tests/Unit/*.test.mjs`）
 
 ---
@@ -129,9 +131,10 @@
 - Secrets 管理：連線字串、JWT 簽章金鑰皆使用 `dotnet user-secrets`，未提交至 Git
 - **修正一個影響全站的 DateTime 序列化 bug**：`AppDbContext` 新增 `ConfigureConventions` + `Data/UtcDateTimeConverter.cs`，讓所有從 MySQL 讀回的 `DateTime` 都強制標記 `DateTimeKind.Utc`（MySQL `DATETIME` 欄位不記錄時區，EF Core 讀回時預設是 `Unspecified`，導致 JSON 序列化漏掉 `Z` 尾碼，前端任何 `new Date(...)` 都會誤判成瀏覽器本地時間）；同時把 History List（`time-entry.js`）改成用帳號時區（見上方第 7 項），細節見 `Docs/HANDOFF.md`
 - Calendar View（第 8 項）：`/TimeEntry` 新增 List／Calendar tab 切換，桌面週時間軸／手機單日時間軸，唯讀、重用既有 `GET /api/time-entries` overlap 查詢，沒有新增後端程式碼，詳見 [`Docs/CalendarView.md`](CalendarView.md)
+- Report（第 11 項）：`ReportService` 只轉接 range 給 `TimeAggregationService`（不重寫聚合邏輯），`GET /api/reports/category`/`GET /api/reports/tag` 預設本月，`report.js` 平行讀取兩端點並同步渲染 Category 圓餅圖（含百分比 legend）與 Tag 長條圖（無百分比，因為可重複累計），側欄「報表」`href="#"` 已全站改指向 `/Report`，詳見 [`Docs/Report.md`](Report.md)
 
 ## 下一步建議優先順序
-1. Report（第 11 項）串接 `TimeAggregationService`，延續 `DashboardService` 的「只組裝、不重寫聚合邏輯」模式（Category 圓餅圖、Tag 長條圖）
-2. Timer 卡片（`timer.js`）即時顯示目前仍用瀏覽器本地時區計算日期範圍，尚未改用使用者在 `/Settings` 設定的時區（History List 與 Calendar View 都已改用帳號時區，可參考同一個模式：`wwwroot/js/timezone.mjs`）
-3. Calendar View 尚未在真的瀏覽器裡驗證過視覺效果（桌面週欄、320px 單日、focus 順序），這個 session 沒有可用的瀏覽器自動化工具，建議接手後優先補上
+1. Timer 卡片（`timer.js`）即時顯示目前仍用瀏覽器本地時區計算日期範圍，尚未改用使用者在 `/Settings` 設定的時區（History List 與 Calendar View 都已改用帳號時區，可參考同一個模式：`wwwroot/js/timezone.mjs`）
+2. Calendar View 尚未在真的瀏覽器裡驗證過視覺效果（桌面週欄、320px 單日、focus 順序），這個 session 沒有可用的瀏覽器自動化工具，建議接手後優先補上
+3. CSV export（第 13 項）尚未開始
 4. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）

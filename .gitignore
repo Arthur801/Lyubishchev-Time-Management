@@ -18,3 +18,4 @@ appsettings.*.Local.json
 
 # Logs
 *.log
+/Lyubishchev Time Management/Docs/Deploy_EC2.md
