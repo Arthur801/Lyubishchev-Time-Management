@@ -8,6 +8,8 @@ public class Category
 
     public required string Name { get; set; }
 
+    public required string NormalizedName { get; set; }
+
     public required string Color { get; set; }
 
     public DateTime CreatedAtUtc { get; set; }

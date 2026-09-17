@@ -244,7 +244,7 @@ public sealed class TimeEntryService(AppDbContext dbContext, IClock clock)
 
         var now = clock.UtcNow;
         var newTags = missing
-            .Select(name => new Tag { UserId = userId, Name = name, CreatedAtUtc = now, UpdatedAtUtc = now, User = null! })
+            .Select(name => new Tag { UserId = userId, Name = name, NormalizedName = name.ToUpperInvariant(), CreatedAtUtc = now, UpdatedAtUtc = now, User = null! })
             .ToList();
         dbContext.Tags.AddRange(newTags);
 

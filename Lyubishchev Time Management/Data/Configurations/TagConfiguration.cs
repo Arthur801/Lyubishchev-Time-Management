@@ -13,9 +13,10 @@ public class TagConfiguration : IEntityTypeConfiguration<Tag>
         builder.HasKey(tag => tag.Id);
         builder.Property(tag => tag.Id).ValueGeneratedOnAdd();
         builder.Property(tag => tag.Name).HasMaxLength(100).IsRequired();
+        builder.Property(tag => tag.NormalizedName).HasMaxLength(100).IsRequired();
         builder.Property(tag => tag.CreatedAtUtc).IsRequired();
         builder.Property(tag => tag.UpdatedAtUtc).IsRequired();
-        builder.HasIndex(tag => new { tag.UserId, tag.Name }).IsUnique();
+        builder.HasIndex(tag => new { tag.UserId, tag.NormalizedName }).IsUnique();
 
         builder.HasOne(tag => tag.User)
             .WithMany(user => user.Tags)
