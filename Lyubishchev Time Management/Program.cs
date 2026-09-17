@@ -41,6 +41,8 @@ builder.Services.AddScoped<CurrentUserService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<TimerService>();
 builder.Services.AddScoped<TimeEntryService>();
+builder.Services.AddScoped<CategoryService>();
+builder.Services.AddScoped<TagService>();
 
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 
