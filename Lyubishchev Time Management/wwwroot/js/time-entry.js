@@ -42,15 +42,17 @@ if (page) {
     return payload;
   }
 
-  function buildListQuery() {
+  function buildListQuery(includePagination = true) {
     const { startUtc, endUtc } = getZonedRangeForPreset(state.range, state.timeZoneId);
     const params = new URLSearchParams();
     if (startUtc) params.set('startUtc', startUtc);
     if (endUtc) params.set('endUtc', endUtc);
     if (state.categoryId) params.set('categoryId', state.categoryId);
     if (state.search.trim()) params.set('search', state.search.trim());
-    params.set('page', String(state.page));
-    params.set('pageSize', String(state.pageSize));
+    if (includePagination) {
+      params.set('page', String(state.page));
+      params.set('pageSize', String(state.pageSize));
+    }
     return params.toString();
   }
 
@@ -285,6 +287,15 @@ if (page) {
       $('#calendar-section').hidden = view !== 'calendar';
     }),
   );
+
+  $('#export-csv').addEventListener('click', () => {
+    const button = $('#export-csv');
+    button.disabled = true;
+    // A normal navigation, not callApi(): callApi() calls response.json(), which would consume
+    // and corrupt the browser's native file-download handling of the CSV attachment response.
+    window.location.assign(`/api/time-entries/export?${buildListQuery(false)}`);
+    window.setTimeout(() => { button.disabled = false; }, 1000);
+  });
 
   async function init() {
     try {

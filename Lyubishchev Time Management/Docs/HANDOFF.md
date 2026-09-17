@@ -1,6 +1,6 @@
 # 專案交接摘要（給接手的 AI Agent）
 
-最後更新：2026-09-17，涵蓋到 Report 完成（依照 [`Docs/superpowers/specs/2026-09-17-report-design.md`](superpowers/specs/2026-09-17-report-design.md) 與 [`Docs/superpowers/plans/2026-09-17-report.md`](superpowers/plans/2026-09-17-report.md) 實作），細節見 [`Docs/Report.md`](Report.md)。再往前是 Calendar View 完成（依照 [`Docs/superpowers/specs/2026-09-17-calendar-view-design.md`](superpowers/specs/2026-09-17-calendar-view-design.md) 與 [`Docs/superpowers/plans/2026-09-17-calendar-view.md`](superpowers/plans/2026-09-17-calendar-view.md) 實作），細節見 [`Docs/CalendarView.md`](CalendarView.md)。再往前是一次修正 DateTimeKind 序列化 bug 並把 History List 改用帳號時區（見下方「這個 session 中發現並修好的重要地雷」第 3 點），再更早是 Dashboard 真實資料串接完成（依照 [`Docs/superpowers/specs/2026-09-17-dashboard-design.md`](superpowers/specs/2026-09-17-dashboard-design.md) 與 [`Docs/superpowers/plans/2026-09-17-dashboard.md`](superpowers/plans/2026-09-17-dashboard.md) 實作）。再往前依序是 Timezone settings 與 TimeAggregationService（依照 [`Docs/superpowers/specs/2026-09-17-timezone-and-aggregation-design.md`](superpowers/specs/2026-09-17-timezone-and-aggregation-design.md) 與對應的 [`Docs/superpowers/plans/2026-09-17-timezone-settings.md`](superpowers/plans/2026-09-17-timezone-settings.md)、[`Docs/superpowers/plans/2026-09-17-time-aggregation-service.md`](superpowers/plans/2026-09-17-time-aggregation-service.md) 實作），再更早是 Category/Tag 管理功能（依照 [`Docs/superpowers/specs/2026-09-17-category-tag-management-design.md`](superpowers/specs/2026-09-17-category-tag-management-design.md) 與 [`Docs/superpowers/plans/2026-09-17-category-tag-management.md`](superpowers/plans/2026-09-17-category-tag-management.md) 實作）。本文件的目的是讓另一個 AI agent 不需要重新爬梳整個對話記錄，就能接續目前的進度。**開始工作前務必先讀 `AGENTS.md`（專案根目錄，`CLAUDE.md` 只是 `@AGENTS.md` 的轉介）——那是這個專案唯一的權威規格文件，所有設計決策都必須對齊它。**
+最後更新：2026-09-17，涵蓋到 CSV export 完成（依照 [`Docs/superpowers/specs/2026-09-17-csv-export-design.md`](superpowers/specs/2026-09-17-csv-export-design.md) 與 [`Docs/superpowers/plans/2026-09-17-csv-export.md`](superpowers/plans/2026-09-17-csv-export.md) 實作），細節見 [`Docs/CsvExport.md`](CsvExport.md)。再往前是 Report 完成（依照 [`Docs/superpowers/specs/2026-09-17-report-design.md`](superpowers/specs/2026-09-17-report-design.md) 與 [`Docs/superpowers/plans/2026-09-17-report.md`](superpowers/plans/2026-09-17-report.md) 實作），細節見 [`Docs/Report.md`](Report.md)。再往前是 Calendar View 完成（依照 [`Docs/superpowers/specs/2026-09-17-calendar-view-design.md`](superpowers/specs/2026-09-17-calendar-view-design.md) 與 [`Docs/superpowers/plans/2026-09-17-calendar-view.md`](superpowers/plans/2026-09-17-calendar-view.md) 實作），細節見 [`Docs/CalendarView.md`](CalendarView.md)。再往前是一次修正 DateTimeKind 序列化 bug 並把 History List 改用帳號時區（見下方「這個 session 中發現並修好的重要地雷」第 3 點），再更早是 Dashboard 真實資料串接完成（依照 [`Docs/superpowers/specs/2026-09-17-dashboard-design.md`](superpowers/specs/2026-09-17-dashboard-design.md) 與 [`Docs/superpowers/plans/2026-09-17-dashboard.md`](superpowers/plans/2026-09-17-dashboard.md) 實作）。再往前依序是 Timezone settings 與 TimeAggregationService（依照 [`Docs/superpowers/specs/2026-09-17-timezone-and-aggregation-design.md`](superpowers/specs/2026-09-17-timezone-and-aggregation-design.md) 與對應的 [`Docs/superpowers/plans/2026-09-17-timezone-settings.md`](superpowers/plans/2026-09-17-timezone-settings.md)、[`Docs/superpowers/plans/2026-09-17-time-aggregation-service.md`](superpowers/plans/2026-09-17-time-aggregation-service.md) 實作），再更早是 Category/Tag 管理功能（依照 [`Docs/superpowers/specs/2026-09-17-category-tag-management-design.md`](superpowers/specs/2026-09-17-category-tag-management-design.md) 與 [`Docs/superpowers/plans/2026-09-17-category-tag-management.md`](superpowers/plans/2026-09-17-category-tag-management.md) 實作）。本文件的目的是讓另一個 AI agent 不需要重新爬梳整個對話記錄，就能接續目前的進度。**開始工作前務必先讀 `AGENTS.md`（專案根目錄，`CLAUDE.md` 只是 `@AGENTS.md` 的轉介）——那是這個專案唯一的權威規格文件，所有設計決策都必須對齊它。**
 
 ---
 
@@ -29,17 +29,18 @@
 | 9 | TimeAggregationService | ✅ 完成，已被 Dashboard、Report 共同消費 | [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md) |
 | 10 | Dashboard | ✅ 完成，計時器卡片、統計卡片/圖表、最近活動皆為真實資料，mock data 已全部移除 | [`Docs/Dashboard.md`](Dashboard.md) |
 | 11 | Report | ✅ 完成，Category 圓餅圖與 Tag 長條圖皆為真實資料，只轉接 `TimeAggregationService` 不重寫聚合邏輯 | [`Docs/Report.md`](Report.md) |
-| 12 | Timezone settings | ✅ 完成（`/Settings` 頁面可選、持久化；Dashboard/History List/Calendar/Report 皆已改用帳號時區，只剩 Timer 卡片即時顯示未改，見下方章節） | [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md) |
-| 13 | CSV export | ❌ 未開始 | — |
+| 12 | Timezone settings | ✅ 完成（`/Settings` 頁面可選、持久化；Dashboard/History List/Calendar/Report/CSV export 皆已改用帳號時區，只剩 Timer 卡片即時顯示未改，見下方章節） | [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md) |
+| 13 | CSV export | ✅ 完成，`GET /api/time-entries/export` 不分頁輸出目前 History 篩選值命中的全部 TimeEntry，UTF-8 BOM RFC 4180、帳號時區顯示、時長不受 DST 影響 | [`Docs/CsvExport.md`](CsvExport.md) |
 | 14 | RWD | 🟡 各頁面 CSS 內建 media query，但沒有集中在 `responsive.css` | — |
-| 15 | Error handling / Logging / Rate limit | 🟡 Rate limiting 與 CSRF 已完成；global exception handler 未確認；`Infrastructure/Logging` 只有 auth 事件 | [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md) |
+| 15 | Error handling / Logging / Rate limit | 🟡 Rate limiting 與 CSRF 已完成；global exception handler 未確認；`Infrastructure/Logging` 只有 auth 事件（CSV export failure 尚未補 log 事件） | [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md) |
 | 16 | Nginx / EC2 / Backup | ❌ 未開始 | — |
 
+**AGENTS.md Implementation Order 第 1–13 項已全數完成**，剩下第 14（RWD 集中化，非必要）、15（錯誤處理/日誌）、16（部署）。
+
 **建議下一步優先順序**（`Docs/TODO.md` 目前寫的）：
-1. Timer 卡片（`timer.js`）即時顯示目前仍用瀏覽器本地時區，尚未改用帳號時區（History List、Dashboard、Calendar、Report 都已經改好，可參考同一個模式：`wwwroot/js/timezone.mjs`）
+1. Timer 卡片（`timer.js`）即時顯示目前仍用瀏覽器本地時區，尚未改用帳號時區（History List、Dashboard、Calendar、Report、CSV export 都已經改好，可參考同一個模式：`wwwroot/js/timezone.mjs`）
 2. Calendar View 與 Report 都尚未在真的瀏覽器裡驗證過視覺效果，建議接手後優先補上
-3. CSV export（第 13 項）尚未開始
-4. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）
+3. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）
 
 ---
 
@@ -112,6 +113,19 @@
 - **側欄「報表」`href="#"` 已全站改指向 `/Report`**：`Views/Dashboard`、`TimeEntry`、`Category`、`Tag`、`Settings` 的 `Index.cshtml`（含 Dashboard 的 `mobile-nav`）都已更新，這是延續上一輪 bug fix（Settings 連結）時發現的同一種 placeholder 問題。
 - **測試**：新增 `Tests/TimeEntryFlow.Tests/Integration/ReportServiceTests.cs`（14 個測試，沿用 `TestDatabase` SQLite fixture），涵蓋預設本月、三種 preset、custom range（含半給視為 `INVALID_RANGE_PRESET`）、preset 與 custom 同給、無效 preset/date range、未分類色彩、Tag additive 加總與排序、空資料、跨使用者隔離、Category 依時長排序。`Tests/TimeEntryFlow.Tests` 目前共 97 個測試全過。
 - **手動驗證**：本機啟動 `dotnet run --no-build`（port 5180），用 `curl` 走完整流程：註冊 → 建立 2 個 Category、3 筆 TimeEntry（含未分類、跨 Category 多 Tag 疊加）→ `GET /Report`（200，`report.js`/`report.css` 正確接線）→ 不給參數確認預設本月且未分類/Tag 疊加加總正確 → 各 preset → custom range → 各種錯誤組合（無效 preset、無效日期範圍、preset 與 custom 同給）全部回正確的 400/errorCode → 確認 Dashboard/History/Category/Tag/Settings 側欄與行動導覽的「報表」連結都已指向 `/Report`。這個 session 同樣沒有可用的瀏覽器自動化工具，桌面雙欄／900px 以下單欄堆疊的實際視覺效果沒有在真的瀏覽器裡驗證過。驗證用的測試資料（Category、TimeEntry、Tag、帳號）已於驗證後刪除。
+
+---
+
+## CSV Export（第 13 項）實作紀錄
+
+依照 [`Docs/superpowers/specs/2026-09-17-csv-export-design.md`](superpowers/specs/2026-09-17-csv-export-design.md) 與 [`Docs/superpowers/plans/2026-09-17-csv-export.md`](superpowers/plans/2026-09-17-csv-export.md) 實作，完整細節見獨立文件 [`Docs/CsvExport.md`](CsvExport.md)，這裡只記重點：
+
+- **明細匯出，不是彙總報表**：`CsvExportService` 刻意不呼叫 `TimeAggregationService`——那個服務會把 TimeEntry 依查詢邊界裁切成統計區間交集，匯出要的是每一筆的原始 `StartTimeUtc`/`EndTimeUtc`/時長，裁切會讓明細失真。查詢邏輯改成跟 `TimeEntryService.ListAsync` 同構但完全獨立（同樣的 overlap/擁有權/篩選/排序），唯一差異是不做 `Skip`/`Take`，匯出無分頁上限。
+- **修正計畫範例程式碼裡一個真的 BOM bug**：`CsvWriter.Write` 原始草稿直接用 `Utf8WithBom.GetBytes(text)`，但 `Encoding.GetBytes()` 不論 `encoderShouldEmitUTF8Identifier` 設定為何都不會自動加 BOM（那個旗標只影響 `GetPreamble()`）。照計畫先寫的 `CsvWriterTests` 一跑全部卡在 BOM 斷言，改成手動 `GetPreamble()` + `GetBytes()` 拼接才過。**教訓：計畫文件裡附的範例程式碼不是自動正確的，一樣要照著先寫失敗測試再實作的流程走一遍。**
+- **`Category` 欄位的「未分類」值故意是英文字面量 `Uncategorized`**，跟 App 介面（Dashboard/`TimeAggregationService`）用的中文「未分類」不同調——這是設計文件明講的既定格式，不是疏漏。
+- **History List 的帳號時區換算在前一輪（[Docs/HANDOFF.md 第 3 點重要地雷](#這個-session-中發現並修好的兩個重要地雷)）就已經修好**，這次不需要再補設計文件裡提到的「prerequisite adjustment」。
+- **測試**：新增 `Tests/TimeEntryFlow.Tests/Unit/CsvWriterTests.cs`（3 個：BOM/CRLF/escape/公式中和、空資料只剩 header）、`Tests/TimeEntryFlow.Tests/Integration/CsvExportServiceTests.cs`（5 個：完整排序＋時區＋Uncategorized＋Tag 排序、跨午夜範圍內完整一筆、201 筆無分頁上限、跨使用者隔離＋空結果、New York 春季 DST 時長用 UTC 差值不是牆上鐘面相減）。`Tests/TimeEntryFlow.Tests` 目前共 105 個測試全過。
+- **手動驗證**：本機啟動 `dotnet run --no-build`（port 5180），用 `curl` 走完整流程：註冊 → 建立 Category、一筆有分類雙 Tag 的 TimeEntry、一筆跨本地午夜的未分類 TimeEntry → 不帶範圍匯出（`200`、`Content-Disposition: attachment; filename=time-entries-all.csv`、位元組開頭 `EF BB BF`、兩筆依 `StartTimeUtc` 降冪、欄位含 `Alpha; zeta` 排序與正確時長）→ 帶今天範圍匯出（檔名變成 `time-entries-20260917-20260917.csv`）→ 帶 `categoryId` 只回那一筆 → `endUtc <= startUtc` 回 `400 INVALID_TIME_RANGE` → 未登入回 `401` → 確認 `/TimeEntry` 頁面有「匯出 CSV」按鈕。驗證用的測試資料（TimeEntry、Category、帳號）已於驗證後刪除。
 
 ---
 

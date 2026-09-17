@@ -8,8 +8,29 @@ namespace Lyubishchev_Time_Management.Controllers.Api;
 
 [Authorize]
 [Route("api/time-entries")]
-public sealed class TimeEntryApiController(TimeEntryService timeEntryService, CurrentUserService currentUserService) : ControllerBase
+public sealed class TimeEntryApiController(TimeEntryService timeEntryService, CsvExportService csvExportService, CurrentUserService currentUserService) : ControllerBase
 {
+    [HttpGet("export")]
+    public async Task<IActionResult> Export(
+        [FromQuery] DateTime? startUtc,
+        [FromQuery] DateTime? endUtc,
+        [FromQuery] ulong? categoryId,
+        [FromQuery] string? search,
+        CancellationToken cancellationToken = default)
+    {
+        if (startUtc is not null && endUtc is not null && endUtc <= startUtc)
+        {
+            return Problem(detail: "結束時間必須晚於開始時間。", statusCode: StatusCodes.Status400BadRequest, title: "INVALID_TIME_RANGE");
+        }
+
+        var document = await csvExportService.ExportAsync(
+            currentUserService.GetRequiredUserId(),
+            new CsvExportRequest(startUtc, endUtc, categoryId, search),
+            cancellationToken);
+
+        return File(document.Content, "text/csv; charset=utf-8", document.FileName);
+    }
+
     [HttpGet]
     public async Task<IActionResult> List(
         [FromQuery] DateTime? startUtc,

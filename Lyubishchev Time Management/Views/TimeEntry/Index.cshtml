@@ -25,13 +25,15 @@
 
     <header class="mobile-header">
         <a class="app-brand" asp-controller="Dashboard" asp-action="Index" aria-label="LTM 儀表板"><span>LTM</span><small>TIME LOG</small></a>
-        <button class="icon-button" type="button" aria-label="開啟設定">⚙</button>
     </header>
 
     <main class="dashboard-content history-content" id="history-content">
         <header class="page-heading">
             <div><p class="eyebrow">歷史紀錄</p><h1>回顧你走過的每一段時間。</h1><p id="history-count">載入中…</p></div>
-            <button class="outline-button" type="button" id="add-entry">+ 新增紀錄</button>
+            <div class="page-heading__actions">
+                <button class="outline-button" type="button" id="export-csv">匯出 CSV</button>
+                <button class="outline-button" type="button" id="add-entry">+ 新增紀錄</button>
+            </div>
         </header>
 
         <div class="history-view-toggle" role="group" aria-label="檢視模式">
