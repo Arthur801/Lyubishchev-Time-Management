@@ -1,0 +1,55 @@
+@{
+    ViewData["Title"] = "分類管理";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/history.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/category-tag.css" asp-append-version="true" />
+}
+
+<div class="dashboard-page" id="category-page">
+    <aside class="app-sidebar" aria-label="主要導覽">
+        <a class="app-brand" asp-controller="Dashboard" asp-action="Index" aria-label="LTM 儀表板"><span>LTM</span><small>TIME LOG</small></a>
+        <nav class="app-nav">
+            <a class="app-nav__link" asp-controller="Dashboard" asp-action="Index"><span aria-hidden="true">◈</span>儀表板</a>
+            <a class="app-nav__link" asp-controller="TimeEntry" asp-action="Index"><span aria-hidden="true">◷</span>歷史紀錄</a>
+            <a class="app-nav__link" href="#"><span aria-hidden="true">▥</span>報表</a>
+            <a class="app-nav__link app-nav__link--active" asp-controller="Category" asp-action="Index" aria-current="page"><span aria-hidden="true">◌</span>分類</a>
+            <a class="app-nav__link" asp-controller="Tag" asp-action="Index"><span aria-hidden="true">#</span>標籤</a>
+            <a class="app-nav__link" href="#"><span aria-hidden="true">⚙</span>設定</a>
+        </nav>
+        <a class="app-nav__link app-nav__link--logout" href="#"><span aria-hidden="true">↗</span>登出</a>
+    </aside>
+
+    <header class="mobile-header">
+        <a class="app-brand" asp-controller="Dashboard" asp-action="Index" aria-label="LTM 儀表板"><span>LTM</span><small>TIME LOG</small></a>
+        <button class="icon-button" type="button" aria-label="開啟設定">⚙</button>
+    </header>
+
+    <main class="dashboard-content resource-content">
+        <header class="page-heading">
+            <div><p class="eyebrow">分類</p><h1>整理時間的脈絡。</h1><p id="resource-count">載入中…</p></div>
+            <button id="add-resource" class="outline-button" type="button">+ 新增分類</button>
+        </header>
+        <p id="resource-error" class="form-message" role="alert"></p>
+        <ul id="resource-list" class="resource-list" aria-live="polite"></ul>
+    </main>
+</div>
+
+<dialog id="resource-modal" class="entry-modal">
+    <form id="resource-form" class="entry-modal__panel">
+        <h2 id="resource-modal-title"></h2>
+        <label>名稱<input id="resource-name" maxlength="100" required></label>
+        <label id="resource-color-field">色彩<input id="resource-color" type="color" value="#e5533d" required></label>
+        <p id="resource-form-error" class="form-message" role="alert"></p>
+        <div class="entry-modal__actions">
+            <button id="resource-cancel" class="outline-button" type="button">取消</button>
+            <button class="primary-button" type="submit">儲存</button>
+        </div>
+    </form>
+</dialog>
+
+@section Scripts {
+    <script type="module" src="~/js/category.js" asp-append-version="true"></script>
+}
