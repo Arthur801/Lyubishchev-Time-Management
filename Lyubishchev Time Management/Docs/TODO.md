@@ -26,6 +26,7 @@
 - [x] `Controllers/Api/TimerApiController.cs`（`GET /api/timer`、`POST /api/timer/start`、`POST /api/timer/stop`，`[Authorize]` + CSRF）
 - [x] Stop Timer 的 DB transaction 流程（讀取 → 建立 TimeEntry → 刪除 RunningTimer → commit，並發衝突以 `DbUpdateConcurrencyException` 偵測後 rollback，確保只有一筆 TimeEntry）
 - [x] `wwwroot/js/timer.js` 已串接真實 API（Dashboard 計時卡片），取代原本 `dashboard.js` 內的前端模擬計時邏輯
+- [x] **釐清並修正先前文件裡「Timer 卡片仍用瀏覽器本地時區」的不準確描述**：實際檢查後發現 `timer.js` 的即時顯示只做「經過秒數」的計時（`Date.now() - startedAtUtc`），從來不做任何跟日曆日期/時區相關的計算，過去幾輪文件更新把它跟 `time-entry.js` 的日期範圍 bug 混為一談是誤判。真正的既有問題是 `formatClock` 借道 `new Date(seconds*1000).toISOString().slice(11,19)` 換算 HH:mm:ss，一旦計時超過 24 小時會在 86400 秒整數處繞回 `00:00:00`（`AGENTS.md` 明講「Long TimeEntries are allowed」／時長可能超過 24 小時）。已抽成純函式 `wwwroot/js/timer-state.mjs` 的 `formatClock`（改用整數除法/取餘，不再經過 `Date`），修正這個溢位，並新增 `Tests/Unit/timer-state.test.mjs`（3 個測試，含 86400 秒與 90061 秒的迴歸案例）
 - 詳細實作說明見 [`Docs/RunningTimerStartStop.md`](RunningTimerStartStop.md)
 
 ## 4. Manual TimeEntry CRUD
@@ -117,6 +118,7 @@
 - [x] Integration Tests：Report（preset 缺省時預設 month、today/week/month preset、custom range、preset 與 custom 同給/半給皆無效、無效日期範圍、Uncategorized 顏色、Tag additive 加總與排序、空資料、跨使用者隔離、Category 排序）已完成，細節見 [`Docs/Report.md`](Report.md)
 - [x] Unit Tests：Calendar View 的跨午夜切段與重疊分欄純函式（`Tests/Unit/calendar-state.test.mjs`，5 個測試）、`timezone.mjs` 新增的日期運算函式（`Tests/Unit/timezone.test.mjs`，新增 4 個測試），細節見 [`Docs/CalendarView.md`](CalendarView.md)。`Tests/Unit/` 目前共 23 個 Node 測試（`node --test Tests/Unit/*.test.mjs`）
 - [x] Unit/Integration Tests：CSV export（`CsvWriterTests` 3 個：BOM/CRLF/escape/公式中和/空資料；`CsvExportServiceTests` 5 個：完整排序、跨午夜完整一筆、201 筆無分頁上限、跨使用者隔離＋空結果、New York 春季 DST 時長），`Tests/TimeEntryFlow.Tests` 目前共 105 個測試，細節見 [`Docs/CsvExport.md`](CsvExport.md)
+- [x] Unit Tests：Timer 卡片的經過時間格式化純函式（`Tests/Unit/timer-state.test.mjs`，3 個測試，含超過 24 小時不繞回 0 的迴歸案例）
 
 ---
 
@@ -136,9 +138,9 @@
 - Calendar View（第 8 項）：`/TimeEntry` 新增 List／Calendar tab 切換，桌面週時間軸／手機單日時間軸，唯讀、重用既有 `GET /api/time-entries` overlap 查詢，沒有新增後端程式碼，詳見 [`Docs/CalendarView.md`](CalendarView.md)
 - Report（第 11 項）：`ReportService` 只轉接 range 給 `TimeAggregationService`（不重寫聚合邏輯），`GET /api/reports/category`/`GET /api/reports/tag` 預設本月，`report.js` 平行讀取兩端點並同步渲染 Category 圓餅圖（含百分比 legend）與 Tag 長條圖（無百分比，因為可重複累計），側欄「報表」`href="#"` 已全站改指向 `/Report`，詳見 [`Docs/Report.md`](Report.md)
 - CSV export（第 13 項）：`GET /api/time-entries/export` 不分頁輸出 History 目前篩選值命中的全部 TimeEntry，UTF-8 BOM RFC 4180、帳號時區顯示、時長用 UTC 差值不受 DST 影響，不重用 `TimeAggregationService`（那是彙總用的區間裁切，匯出需要完整明細）；修正了計畫範例程式碼裡一個真的 BOM bug（`Encoding.GetBytes()` 不會自動加 BOM，要手動接上 `GetPreamble()`），詳見 [`Docs/CsvExport.md`](CsvExport.md)
+- **釐清「Timer 卡片時區」的既有 TODO 項目其實是誤判**：`timer.js` 的即時顯示只算經過秒數，跟日曆日期/帳號時區無關，過去文件把它跟 History List 的時區 bug 混為一談。順手修好一個真的存在、跟這次調查相關的小 bug：`formatClock` 借道 `Date`/`toISOString` 換算，計時超過 24 小時會繞回 `00:00:00`；已抽成 `wwwroot/js/timer-state.mjs` 改用純整數運算修正，新增 `Tests/Unit/timer-state.test.mjs`。
 
 ## 下一步建議優先順序
-1. Timer 卡片（`timer.js`）即時顯示目前仍用瀏覽器本地時區計算日期範圍，尚未改用使用者在 `/Settings` 設定的時區（History List、Calendar View、CSV export 都已改用帳號時區，可參考同一個模式：`wwwroot/js/timezone.mjs`）
-2. Calendar View 與 Report 尚未在真的瀏覽器裡驗證過視覺效果（桌面週欄、320px 單日、focus 順序），這個 session 沒有可用的瀏覽器自動化工具，建議接手後優先補上
-3. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）——CSV export 本身已完成，但它失敗時的 log 事件還沒補（沿用專案既有慣例，跟其餘 logging 基礎設施一起做）
-4. AGENTS.md Implementation Order 的第 1–13 項已全數完成，剩下第 14（RWD 集中化，非必要）、15（錯誤處理/日誌）、16（部署）
+1. Calendar View 與 Report 尚未在真的瀏覽器裡驗證過視覺效果（桌面週欄、320px 單日、focus 順序），這個 session 沒有可用的瀏覽器自動化工具，建議接手後優先補上
+2. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）——CSV export 本身已完成，但它失敗時的 log 事件還沒補（沿用專案既有慣例，跟其餘 logging 基礎設施一起做）
+3. AGENTS.md Implementation Order 的第 1–13 項已全數完成，剩下第 14（RWD 集中化，非必要）、15（錯誤處理/日誌）、16（部署）

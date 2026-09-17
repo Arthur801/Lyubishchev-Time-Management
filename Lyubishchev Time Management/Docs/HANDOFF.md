@@ -29,7 +29,7 @@
 | 9 | TimeAggregationService | ✅ 完成，已被 Dashboard、Report 共同消費 | [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md) |
 | 10 | Dashboard | ✅ 完成，計時器卡片、統計卡片/圖表、最近活動皆為真實資料，mock data 已全部移除 | [`Docs/Dashboard.md`](Dashboard.md) |
 | 11 | Report | ✅ 完成，Category 圓餅圖與 Tag 長條圖皆為真實資料，只轉接 `TimeAggregationService` 不重寫聚合邏輯 | [`Docs/Report.md`](Report.md) |
-| 12 | Timezone settings | ✅ 完成（`/Settings` 頁面可選、持久化；Dashboard/History List/Calendar/Report/CSV export 皆已改用帳號時區，只剩 Timer 卡片即時顯示未改，見下方章節） | [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md) |
+| 12 | Timezone settings | ✅ 完成（`/Settings` 頁面可選、持久化；Dashboard/History List/Calendar/Report/CSV export 皆已改用帳號時區；Timer 卡片經查證後不需要改——它的即時顯示只算經過秒數，跟日曆日期/時區無關，見下方「這個 session 中發現並修好的重要地雷」第 4 點） | [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md) |
 | 13 | CSV export | ✅ 完成，`GET /api/time-entries/export` 不分頁輸出目前 History 篩選值命中的全部 TimeEntry，UTF-8 BOM RFC 4180、帳號時區顯示、時長不受 DST 影響 | [`Docs/CsvExport.md`](CsvExport.md) |
 | 14 | RWD | 🟡 各頁面 CSS 內建 media query，但沒有集中在 `responsive.css` | — |
 | 15 | Error handling / Logging / Rate limit | 🟡 Rate limiting 與 CSRF 已完成；global exception handler 未確認；`Infrastructure/Logging` 只有 auth 事件（CSV export failure 尚未補 log 事件） | [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md) |
@@ -38,9 +38,8 @@
 **AGENTS.md Implementation Order 第 1–13 項已全數完成**，剩下第 14（RWD 集中化，非必要）、15（錯誤處理/日誌）、16（部署）。
 
 **建議下一步優先順序**（`Docs/TODO.md` 目前寫的）：
-1. Timer 卡片（`timer.js`）即時顯示目前仍用瀏覽器本地時區，尚未改用帳號時區（History List、Dashboard、Calendar、Report、CSV export 都已經改好，可參考同一個模式：`wwwroot/js/timezone.mjs`）
-2. Calendar View 與 Report 都尚未在真的瀏覽器裡驗證過視覺效果，建議接手後優先補上
-3. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）
+1. Calendar View 與 Report 都尚未在真的瀏覽器裡驗證過視覺效果，建議接手後優先補上
+2. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）
 
 ---
 
@@ -157,11 +156,12 @@
 
 ---
 
-## 這個 session 中發現並修好的兩個重要地雷
+## 這個 session 中發現並修好的重要地雷
 
 1. **主專案 `.csproj` 的 `Content`/`None` 排除不完整，造成建置輸出資料夾指數爆炸**：原本只有 `<Compile Remove="Tests\**\*.cs" />`，只排除 C# 編譯，沒排除 Web SDK 隱含的 `Content`/`None` `**` 萬用字元規則。三個測試專案都放在主專案目錄底下、且各自 `bin/` 都含有主專案建置輸出的複本，導致主專案每建置一次就把測試專案的 `bin`（裡面又有更早一次建置的複本）當成自己的內容複製進自己的輸出，巢狀深度以指數成長（實測深到 `rm -rf` 光刪除舊資料夾就要跑好幾分鐘，`dotnet build` 慢到 4 分鐘以上）。**已修正**：`.csproj` 加上 `<Content Remove="Tests\**" />` 與 `<None Remove="Tests\**" />`。**如果你發現建置/測試莫名變慢、或看到路徑裡有 `bin\...\Tests\XxxFlow.Tests\bin\...\Tests\XxxFlow.Tests\bin\...` 這種重複巢狀，就是這個問題復發了**——檢查 `.csproj` 有沒有被改回去，並直接刪掉爆炸的 `bin`/`obj`（未被 Git 追蹤，刪除永遠安全）重建即可。
 2. **只靠 SQLite/InMemory 測試不代表真的沒 bug**：`TimeEntryService.UpdateAsync` 有個真實的 `NullReferenceException`（漏了 `.ThenInclude(link => link.Tag)`），SQLite 測試因為在同一個 `DbContext` 裡先 `Create` 再 `Update`、EF 的追蹤器 identity-fixup 意外把缺漏蓋過去而完全沒抓到，直到啟動真正的開發伺服器、用 `curl` 跑一次「註冊 → 建立 → 部分更新（PATCH 不帶 tags）」的完整流程才炸出來。**教訓：寫牽涉到「跨請求讀取關聯資料」的測試時，要故意用兩個獨立的 `DbContext` 實例（一個建立、一個之後操作）模擬真實的 per-request scope，不要因為測試方便就共用同一個 `DbContext`**（`TimeEntryFlow.Tests` 裡 `UpdateAsync_omitting_tags_leaves_existing_tags_untouched` 已經改成這樣寫，可以當範本）。**如果之後要做有實質風險的新功能，建議在自動化測試都過了之後，額外啟動一次本機開發伺服器（`dotnet run --no-build`，記得先確認沒有舊的 dotnet process 佔用同個 port/鎖住 build 輸出）用 `curl` 跑一次端到端流程再收工**——這個 session 兩次都是靠這一步抓到真正的生產環境 bug。
-3. **（後續 session 追加）MySQL `DATETIME` 不記錄時區，EF Core 讀回的 `DateTime.Kind` 會變成 `Unspecified`，導致 JSON 序列化漏掉 `Z` 尾碼、前端所有 `new Date(...)` 都會誤判成瀏覽器本地時間**：使用者人工測試回報「TimeEntry 用 UTC+8 時間建立，History List 卻顯示成 UTC」。追下去發現這不是單純的前端時區換算問題——`GET /api/time-entries`、`GET /api/dashboard` 回傳的 `startTimeUtc`/`endTimeUtc` 字串本身就沒有 `Z`（例如 `"2026-09-17T06:00:00"`），用 `curl` 直接打 API 就能重現（SQLite/InMemory 測試完全測不出來，因為 SQLite provider 會把 `DateTimeKind` 正確序列化進 ISO 字串再讀回來，只有真正的 MySQL 才會遺失）。**修正方式**：`Data/AppDbContext.cs` 覆寫 `ConfigureConventions`，對所有 `DateTime` 屬性套用新增的 `Data/UtcDateTimeConverter.cs`（讀取時強制 `DateTime.SpecifyKind(v, DateTimeKind.Utc)`），因為這個專案的每一個 `DateTime` 欄位依 `AGENTS.md` 規則本來就都是 UTC，全域套用是安全的。用 `curl` 重新驗證 MySQL 開發資料庫，確認 API 回應已經帶 `Z`。同時順手把 `wwwroot/js/time-entry.js`（History List 的快捷日期範圍、清單顯示時間、新增/編輯表單）從瀏覽器本地時區改成讀取帳號時區（`GET /api/settings/timezone` + 新增的純函式模組 `wwwroot/js/timezone.mjs`，含 Node 單元測試 `Tests/Unit/timezone.test.mjs`），對齊 Dashboard 既有的帳號時區顯示模式——這是這次 bug report 的第二層問題（第 12 項 Timezone settings 文件本來就記著這個已知缺口）。Timer 卡片（`timer.js`）仍未做這個修正，留給下一位接手。
+3. **（後續 session 追加）MySQL `DATETIME` 不記錄時區，EF Core 讀回的 `DateTime.Kind` 會變成 `Unspecified`，導致 JSON 序列化漏掉 `Z` 尾碼、前端所有 `new Date(...)` 都會誤判成瀏覽器本地時間**：使用者人工測試回報「TimeEntry 用 UTC+8 時間建立，History List 卻顯示成 UTC」。追下去發現這不是單純的前端時區換算問題——`GET /api/time-entries`、`GET /api/dashboard` 回傳的 `startTimeUtc`/`endTimeUtc` 字串本身就沒有 `Z`（例如 `"2026-09-17T06:00:00"`），用 `curl` 直接打 API 就能重現（SQLite/InMemory 測試完全測不出來，因為 SQLite provider 會把 `DateTimeKind` 正確序列化進 ISO 字串再讀回來，只有真正的 MySQL 才會遺失）。**修正方式**：`Data/AppDbContext.cs` 覆寫 `ConfigureConventions`，對所有 `DateTime` 屬性套用新增的 `Data/UtcDateTimeConverter.cs`（讀取時強制 `DateTime.SpecifyKind(v, DateTimeKind.Utc)`），因為這個專案的每一個 `DateTime` 欄位依 `AGENTS.md` 規則本來就都是 UTC，全域套用是安全的。用 `curl` 重新驗證 MySQL 開發資料庫，確認 API 回應已經帶 `Z`。同時順手把 `wwwroot/js/time-entry.js`（History List 的快捷日期範圍、清單顯示時間、新增/編輯表單）從瀏覽器本地時區改成讀取帳號時區（`GET /api/settings/timezone` + 新增的純函式模組 `wwwroot/js/timezone.mjs`，含 Node 單元測試 `Tests/Unit/timezone.test.mjs`），對齊 Dashboard 既有的帳號時區顯示模式——這是這次 bug report 的第二層問題（第 12 項 Timezone settings 文件本來就記著這個已知缺口）。**這裡順手把 Timer 卡片（`timer.js`）也列進了「尚未改用帳號時區」的待辦清單，但那個假設沒有先查證程式碼——後續 session 已證實是誤判，見下面第 4 點。**
+4. **（後續 session 追加）「Timer 卡片仍用瀏覽器本地時區」是一個沒查證就寫進文件、又被後續幾輪更新照抄的錯誤結論**：使用者要求處理 `Docs/TODO.md` 裡這一項時，實際讀 `wwwroot/js/timer.js` 才發現它的即時顯示（`tick`/`formatClock`）從頭到尾只做「經過秒數」的算術（`Date.now() - startedAtUtc.getTime()`），從來沒有任何日曆日期/時區相關的計算可言——跟 `time-entry.js`（History List）當初的 bug 性質完全不同，過去的文件更新是看到 `timer.js` 裡也有 `new Date()`/`.toISOString()` 就直接套用同一個結論，沒有先確認那段程式碼實際在算什麼。**教訓：文件裡「還沒做」的待辦項目，接手前也要重新對照程式碼確認還成立，不能只信之前 session 寫的結論，尤其是被連續照抄好幾輪的項目。** 順手修好一個這次真正找到、性質完全不同的小 bug：`formatClock` 原本借道 `new Date(seconds*1000).toISOString().slice(11,19)` 換算 `HH:mm:ss`，計時器一旦連續跑滿 24 小時（`AGENTS.md` 明講長時數的 TimeEntry 是允許的）就會在 86400 秒整數處繞回 `00:00:00`。修正方式：抽成 `wwwroot/js/timer-state.mjs` 的純函式 `formatClock`，改用整數除法/取餘運算（不再經過 `Date`），新增 `Tests/Unit/timer-state.test.mjs`（含 86400 秒／90061 秒的迴歸測試）。已用 curl 對真正的開發伺服器跑過 start/status/stop 全流程確認 API 契約（`startedAtUtc` 帶 `Z`）沒有受影響。
 
 ---
 

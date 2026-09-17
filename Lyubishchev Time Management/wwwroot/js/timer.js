@@ -1,3 +1,5 @@
+import { formatClock } from './timer-state.mjs';
+
 const timerCard = document.querySelector('#dashboard-page .timer-card');
 
 if (timerCard) {
@@ -27,10 +29,6 @@ if (timerCard) {
       throw new Error(payload?.detail || '發生錯誤，請稍後再試。');
     }
     return payload;
-  }
-
-  function formatClock(totalSeconds) {
-    return new Date(Math.max(0, totalSeconds) * 1000).toISOString().slice(11, 19);
   }
 
   function tick() {
