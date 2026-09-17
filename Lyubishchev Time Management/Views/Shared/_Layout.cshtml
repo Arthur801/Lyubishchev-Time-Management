@@ -1,4 +1,4 @@
-﻿@using Microsoft.AspNetCore.Antiforgery
+@using Microsoft.AspNetCore.Antiforgery
 @inject IAntiforgery Antiforgery
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -15,6 +15,7 @@
 <body class="app-body">
     @RenderBody()
     @await RenderSectionAsync("Scripts", required: false)
+    <script type="module" src="~/js/mobile-navigation.js" asp-append-version="true"></script>
     <script>
         document.addEventListener("click", async (event) => {
             const logoutLink = event.target.closest(".app-nav__link--logout");

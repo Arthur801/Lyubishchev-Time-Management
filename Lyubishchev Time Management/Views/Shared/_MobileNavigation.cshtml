@@ -1,0 +1,27 @@
+@model string
+@{
+    string ActiveClass(string section) => Model == section ? " mobile-nav__link--active" : "";
+    string? CurrentPage(string section) => Model == section ? "page" : null;
+    var moreActive = Model == "category" || Model == "tag";
+}
+<nav class="mobile-nav" aria-label="行動裝置主要導覽">
+    <a class="mobile-nav__link@(ActiveClass("dashboard"))" asp-controller="Dashboard" asp-action="Index" aria-current="@CurrentPage("dashboard")">◈<span>總覽</span></a>
+    <a class="mobile-nav__link@(ActiveClass("time-entry"))" asp-controller="TimeEntry" asp-action="Index" aria-current="@CurrentPage("time-entry")">◷<span>紀錄</span></a>
+    <a class="mobile-nav__link@(ActiveClass("report"))" asp-controller="Report" asp-action="Index" aria-current="@CurrentPage("report")">▥<span>報表</span></a>
+    <a class="mobile-nav__link@(ActiveClass("settings"))" asp-controller="Settings" asp-action="Index" aria-current="@CurrentPage("settings")">⚙<span>設定</span></a>
+    <button type="button" class="mobile-nav__link mobile-nav__more@(moreActive ? " mobile-nav__link--active" : "")" data-more-trigger aria-haspopup="dialog" aria-controls="more-sheet" aria-expanded="false" aria-current="@(moreActive ? "page" : null)">☰<span>更多</span></button>
+</nav>
+
+<dialog class="more-sheet" id="more-sheet" data-more-sheet aria-labelledby="more-sheet-heading">
+    <div class="more-sheet__panel">
+        <header class="more-sheet__header">
+            <h2 id="more-sheet-heading">更多</h2>
+            <button type="button" class="more-sheet__close" data-more-close aria-label="關閉">×</button>
+        </header>
+        <nav class="more-sheet__links" aria-label="更多導覽">
+            <a class="app-nav__link" asp-controller="Category" asp-action="Index"><span aria-hidden="true">◌</span>分類</a>
+            <a class="app-nav__link" asp-controller="Tag" asp-action="Index"><span aria-hidden="true">#</span>標籤</a>
+            <a class="app-nav__link app-nav__link--logout" href="#"><span aria-hidden="true">↗</span>登出</a>
+        </nav>
+    </div>
+</dialog>

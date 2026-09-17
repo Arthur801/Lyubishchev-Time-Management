@@ -23,7 +23,6 @@
 
     <header class="mobile-header">
         <a class="app-brand" asp-controller="Dashboard" asp-action="Index" aria-label="LTM 儀表板"><span>LTM</span><small>TIME LOG</small></a>
-        <button class="icon-button" type="button" aria-label="開啟設定">⚙</button>
     </header>
 
     <main class="dashboard-content report-content" id="report-content">
@@ -57,12 +56,7 @@
         </section>
     </main>
 
-    <nav class="mobile-nav" aria-label="行動裝置主要導覽">
-        <a class="mobile-nav__link" asp-controller="Dashboard" asp-action="Index">◈<span>總覽</span></a>
-        <a class="mobile-nav__link" asp-controller="TimeEntry" asp-action="Index">◷<span>紀錄</span></a>
-        <a class="mobile-nav__link mobile-nav__link--active" asp-controller="Report" asp-action="Index" aria-current="page">▥<span>報表</span></a>
-        <a class="mobile-nav__link" asp-controller="Settings" asp-action="Index">⚙<span>設定</span></a>
-    </nav>
+    <partial name="_MobileNavigation" model="@("report")" />
 </div>
 
 @section Scripts {

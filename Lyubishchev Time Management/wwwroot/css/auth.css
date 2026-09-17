@@ -237,10 +237,20 @@ body.auth-page {
 @media (max-width: 479px) {
     .auth-page__main {
         align-items: flex-start;
-        padding: 20px;
+        padding: 16px;
     }
 
     .login-card {
-        padding: 28px 24px;
+        padding: 16px;
+    }
+
+    .password-field input {
+        padding-right: 84px;
+    }
+
+    .password-toggle {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 4px 10px;
     }
 }

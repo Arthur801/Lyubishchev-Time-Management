@@ -24,7 +24,6 @@
 
     <header class="mobile-header">
         <a class="app-brand" asp-controller="Dashboard" asp-action="Index" aria-label="LTM 儀表板"><span>LTM</span><small>TIME LOG</small></a>
-        <button class="icon-button" type="button" aria-label="開啟設定">⚙</button>
     </header>
 
     <main class="dashboard-content resource-content">
@@ -35,6 +34,8 @@
         <p id="resource-error" class="form-message" role="alert"></p>
         <ul id="resource-list" class="resource-list" aria-live="polite"></ul>
     </main>
+
+    <partial name="_MobileNavigation" model="@("category")" />
 </div>
 
 <dialog id="resource-modal" class="entry-modal">

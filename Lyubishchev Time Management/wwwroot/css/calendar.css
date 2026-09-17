@@ -1,10 +1,10 @@
-.history-view-toggle{display:inline-flex;padding:4px;border:1px solid var(--line);border-radius:9px;background:var(--surface);margin-bottom:22px}
+.history-view-toggle{display:inline-flex;flex-wrap:wrap;padding:4px;border:1px solid var(--line);border-radius:9px;background:var(--surface);margin-bottom:22px}
 .calendar-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
 .calendar-nav{display:flex;gap:8px}
 .calendar-range-label{margin:0;color:var(--ink);font-size:.9rem;font-weight:800}
 .calendar-error{margin:0;color:#b42318;font-size:.8rem}
 
-.calendar-grid{display:grid;gap:10px;padding:16px;border:1px solid var(--line);border-radius:13px;background:var(--surface);box-shadow:0 6px 16px rgb(37 42 52 / 2%);overflow-x:auto}
+.calendar-grid{display:grid;gap:10px;padding:16px;border:1px solid var(--line);border-radius:13px;background:var(--surface);box-shadow:0 6px 16px rgb(37 42 52 / 2%);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
 .calendar-grid--week{grid-template-columns:repeat(7,minmax(120px,1fr))}
 .calendar-grid--day{grid-template-columns:minmax(0,420px)}
 
@@ -20,4 +20,4 @@
 .calendar-block__tags .tag-chip{padding:1px 5px;font-size:.6rem}
 
 @media(max-width:900px){.calendar-grid--week{grid-template-columns:repeat(7,minmax(94px,1fr))}}
-@media(max-width:768px){.calendar-toolbar{flex-direction:column;align-items:flex-start}.calendar-grid--day{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:768px){.calendar-toolbar{flex-direction:column;align-items:flex-start}.calendar-nav{width:100%;justify-content:space-between}.calendar-grid--day{grid-template-columns:minmax(0,1fr)}.calendar-day__track{padding-bottom:12px}}

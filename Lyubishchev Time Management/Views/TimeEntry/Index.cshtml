@@ -87,12 +87,7 @@
         </section>
     </main>
 
-    <nav class="mobile-nav" aria-label="行動裝置主要導覽">
-        <a class="mobile-nav__link" asp-controller="Dashboard" asp-action="Index">◈<span>總覽</span></a>
-        <a class="mobile-nav__link mobile-nav__link--active" asp-controller="TimeEntry" asp-action="Index" aria-current="page">◷<span>紀錄</span></a>
-        <a class="mobile-nav__link" asp-controller="Report" asp-action="Index">▥<span>報表</span></a>
-        <a class="mobile-nav__link" asp-controller="Settings" asp-action="Index">⚙<span>設定</span></a>
-    </nav>
+    <partial name="_MobileNavigation" model="@("time-entry")" />
 
     <dialog class="entry-modal" id="entry-modal">
         <form class="entry-modal__panel" id="entry-form">

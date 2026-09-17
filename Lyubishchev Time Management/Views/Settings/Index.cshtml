@@ -23,7 +23,6 @@
 
     <header class="mobile-header">
         <a class="app-brand" asp-controller="Dashboard" asp-action="Index" aria-label="LTM 儀表板"><span>LTM</span><small>TIME LOG</small></a>
-        <button class="icon-button" type="button" aria-label="開啟設定">⚙</button>
     </header>
 
     <main class="dashboard-content settings-content">
@@ -42,6 +41,8 @@
             <button id="timezone-save" class="primary-button" type="submit">儲存</button>
         </form>
     </main>
+
+    <partial name="_MobileNavigation" model="@("settings")" />
 </div>
 
 @section Scripts {

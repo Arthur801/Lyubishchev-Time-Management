@@ -1,6 +1,6 @@
 # TODO List
 
-依照 `AGENTS.md` / `Docs/system_design_document.md` 的 Implementation Order 整理，最後更新於 2026-09-17。JWT Cookie 驗證流程已於 `feat/jwt-cookie-auth-flow` 分支完成並合併進 `main`，細節請見 [`Docs/JWT.md`](JWT.md)。Login/Register rate limiting 與 auth failure 記錄已完成，細節請見 [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md)。RunningTimer Start/Stop 核心計時功能已完成，細節請見 [`Docs/RunningTimerStartStop.md`](RunningTimerStartStop.md)。Manual TimeEntry CRUD（含 Category 指派、Tag inline 建立、History List 前端）已完成，細節請見 [`Docs/TimeEntryCrud.md`](TimeEntryCrud.md)。Category、Tag 獨立管理頁面與 CRUD API 已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-category-tag-management-design.md`](superpowers/specs/2026-09-17-category-tag-management-design.md)，實作細節見 `Docs/HANDOFF.md`。Timezone settings 與 TimeAggregationService 已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-timezone-and-aggregation-design.md`](superpowers/specs/2026-09-17-timezone-and-aggregation-design.md)，實作細節見 [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md)。Dashboard 真實資料串接已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-dashboard-design.md`](superpowers/specs/2026-09-17-dashboard-design.md)，實作細節見 [`Docs/Dashboard.md`](Dashboard.md)。Report（Category 圓餅圖、Tag 長條圖）已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-report-design.md`](superpowers/specs/2026-09-17-report-design.md)，實作細節見 [`Docs/Report.md`](Report.md)。CSV export 已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-csv-export-design.md`](superpowers/specs/2026-09-17-csv-export-design.md)，實作細節見 [`Docs/CsvExport.md`](CsvExport.md)。
+依照 `AGENTS.md` / `Docs/system_design_document.md` 的 Implementation Order 整理，最後更新於 2026-09-17。JWT Cookie 驗證流程已於 `feat/jwt-cookie-auth-flow` 分支完成並合併進 `main`，細節請見 [`Docs/JWT.md`](JWT.md)。Login/Register rate limiting 與 auth failure 記錄已完成，細節請見 [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md)。RunningTimer Start/Stop 核心計時功能已完成，細節請見 [`Docs/RunningTimerStartStop.md`](RunningTimerStartStop.md)。Manual TimeEntry CRUD（含 Category 指派、Tag inline 建立、History List 前端）已完成，細節請見 [`Docs/TimeEntryCrud.md`](TimeEntryCrud.md)。Category、Tag 獨立管理頁面與 CRUD API 已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-category-tag-management-design.md`](superpowers/specs/2026-09-17-category-tag-management-design.md)，實作細節見 `Docs/HANDOFF.md`。Timezone settings 與 TimeAggregationService 已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-timezone-and-aggregation-design.md`](superpowers/specs/2026-09-17-timezone-and-aggregation-design.md)，實作細節見 [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md)。Dashboard 真實資料串接已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-dashboard-design.md`](superpowers/specs/2026-09-17-dashboard-design.md)，實作細節見 [`Docs/Dashboard.md`](Dashboard.md)。Report（Category 圓餅圖、Tag 長條圖）已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-report-design.md`](superpowers/specs/2026-09-17-report-design.md)，實作細節見 [`Docs/Report.md`](Report.md)。CSV export 已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-csv-export-design.md`](superpowers/specs/2026-09-17-csv-export-design.md)，實作細節見 [`Docs/CsvExport.md`](CsvExport.md)。RWD 切版已完成，設計依據見 [`Docs/superpowers/specs/2026-09-17-rwd-design.md`](superpowers/specs/2026-09-17-rwd-design.md)，實作細節見 [`Docs/Rwd.md`](Rwd.md)。
 
 狀態標記：`[x]` 完成、`[~]` 部分完成、`[ ]` 未開始
 
@@ -92,9 +92,14 @@
 - 詳細實作說明見 [`Docs/CsvExport.md`](CsvExport.md)
 
 ## 14. RWD
-- [x] Dashboard / History / Login / Register 頁面已有響應式樣式（各自頁面 CSS 內的 media query）
-- [ ] `wwwroot/css/responsive.css` 目前為空檔案且未使用，樣式分散在各頁面 CSS 中，與文件建議的集中管理方式不同（非必要修正，功能上不算錯）
-- [x] Report 頁面已有響應式樣式（`report.css`，桌面雙欄／900px 以下單欄堆疊，沿用 `dashboard.css` 的 donut/legend/tag-chart 元件）
+- [x] 三種版面帶：桌面 `>=901px`（固定側欄）、平板/窄桌面 `721–900px`、手機 `<=720px`（皆為行動 header + 五項底部導覽），320px 為最小支援寬度
+- [x] `Views/Shared/_MobileNavigation.cshtml`（共用局部檢視，`@model string` 決定 active 狀態）取代原本六個頁面各自重複的 `<nav class="mobile-nav">` 標記，新增涵蓋 Dashboard/歷史紀錄/報表/設定四個直接項目 + 「更多」（Category/Tag 經由此開啟，不再是行動裝置的死路）
+- [x] `wwwroot/js/mobile-navigation.mjs`（`isMoreSection`、`createMoreSheetController` 純函式/工廠，原生 `<dialog>`、Escape/backdrop/關閉鈕都收斂進同一個 `close` 事件處理）+ `wwwroot/js/mobile-navigation.js`（DOM 選取後啟動，載入自 `_Layout.cshtml`）
+- [x] `dashboard.css` 擴充為 shell 權威樣式：`.mobile-nav`/`.mobile-nav__link` 44px 觸控目標、`.dashboard-content` 底部 padding 保留 `calc(76px + env(safe-area-inset-bottom))` 空間給固定底部列、`.more-sheet` 底部彈出對話框（45% 遮罩、`min(76vh,620px)`、面板可捲動並含安全區 padding）、`.entry-modal` 在 `<=720px` 有 `calc(100dvh - 24px)` 上限並可內部捲動、`prefers-reduced-motion:reduce` 全域降低過場動畫；`.primary-button` 從 `category-tag.css` 移到這裡作為共用元件（原本 Settings 頁面完全沒載入 `category-tag.css`，儲存按鈕其實是無樣式的，順手修正）
+- [x] Dashboard 側欄/行動 header 的品牌連結從 `href="#"` 改為 `asp-controller="Dashboard" asp-action="Index"`；六個頁面行動 header 移除原本無作用的 ⚙ icon button（`.icon-button` CSS 也一併移除，不留死程式碼）
+- [x] `history.css`（篩選器手機滿版、`entry-name`/`entry-actions` 長文字換行、`icon-btn` 手機 44px）、`calendar.css`（週格保留內部捲動＋捲軸提示、日模式工具列手機滿版，不動既有 768px 的週/日切換門檻，因為那是 `calendar.js` 判斷資料抓取模式用的，不是純視覺斷點）、`report.css`（legend/tag row 允許換行但保持名稱與時長成對）、`category-tag.css`（長名稱 `overflow-wrap:anywhere`）、`auth.css`（`<=479px` 用 16px 邊距、44px 密碼顯示按鈕、84px 輸入框右側留白）
+- [x] `Tests/Unit/mobile-navigation.test.mjs`（5 個測試：`isMoreSection`、開啟狀態同步、backdrop 關閉＋焦點還原、面板內點擊不關閉、關閉鈕）
+- 詳細實作說明見 [`Docs/Rwd.md`](Rwd.md)
 
 ## 15. Error handling / Logging / Rate limit
 - [ ] 全域例外處理（Global Exception Handler）尚未確認是否已設定
@@ -116,9 +121,10 @@
 - [x] Integration/Unit Tests：Timezone settings、TimeAggregationService（白名單、跨使用者隔離、跨午夜切分、DST 春季/秋季整天時長、未分類桶、Category/Tag 聚合）已完成，細節見 [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md)
 - [x] Integration Tests：Dashboard（Today/Week/Month/Custom 比較期、不同長度月份、無效 preset/date range、preset 與 custom 同給、空資料、最近五筆排序、跨使用者隔離、Category/Tag totals 透傳）已完成，細節見 [`Docs/Dashboard.md`](Dashboard.md)。前端純函式與靜態標記另有 `Tests/Unit/dashboard-frontend.test.mjs`（Node `node:test`，4 個測試）
 - [x] Integration Tests：Report（preset 缺省時預設 month、today/week/month preset、custom range、preset 與 custom 同給/半給皆無效、無效日期範圍、Uncategorized 顏色、Tag additive 加總與排序、空資料、跨使用者隔離、Category 排序）已完成，細節見 [`Docs/Report.md`](Report.md)
-- [x] Unit Tests：Calendar View 的跨午夜切段與重疊分欄純函式（`Tests/Unit/calendar-state.test.mjs`，5 個測試）、`timezone.mjs` 新增的日期運算函式（`Tests/Unit/timezone.test.mjs`，新增 4 個測試），細節見 [`Docs/CalendarView.md`](CalendarView.md)。`Tests/Unit/` 目前共 23 個 Node 測試（`node --test Tests/Unit/*.test.mjs`）
+- [x] Unit Tests：Calendar View 的跨午夜切段與重疊分欄純函式（`Tests/Unit/calendar-state.test.mjs`，5 個測試）、`timezone.mjs` 新增的日期運算函式（`Tests/Unit/timezone.test.mjs`，新增 4 個測試），細節見 [`Docs/CalendarView.md`](CalendarView.md)
 - [x] Unit/Integration Tests：CSV export（`CsvWriterTests` 3 個：BOM/CRLF/escape/公式中和/空資料；`CsvExportServiceTests` 5 個：完整排序、跨午夜完整一筆、201 筆無分頁上限、跨使用者隔離＋空結果、New York 春季 DST 時長），`Tests/TimeEntryFlow.Tests` 目前共 105 個測試，細節見 [`Docs/CsvExport.md`](CsvExport.md)
 - [x] Unit Tests：Timer 卡片的經過時間格式化純函式（`Tests/Unit/timer-state.test.mjs`，3 個測試，含超過 24 小時不繞回 0 的迴歸案例）
+- [x] Unit Tests：共用 More sheet 控制器（`Tests/Unit/mobile-navigation.test.mjs`，5 個測試：`isMoreSection` 分類、開啟時 `aria-expanded`/focus、backdrop 關閉＋焦點還原、面板內點擊不關閉、關閉鈕）。`Tests/Unit/` 目前共 27 個 Node 測試（`node --test Tests/Unit/*.test.mjs`）
 
 ---
 
@@ -139,8 +145,9 @@
 - Report（第 11 項）：`ReportService` 只轉接 range 給 `TimeAggregationService`（不重寫聚合邏輯），`GET /api/reports/category`/`GET /api/reports/tag` 預設本月，`report.js` 平行讀取兩端點並同步渲染 Category 圓餅圖（含百分比 legend）與 Tag 長條圖（無百分比，因為可重複累計），側欄「報表」`href="#"` 已全站改指向 `/Report`，詳見 [`Docs/Report.md`](Report.md)
 - CSV export（第 13 項）：`GET /api/time-entries/export` 不分頁輸出 History 目前篩選值命中的全部 TimeEntry，UTF-8 BOM RFC 4180、帳號時區顯示、時長用 UTC 差值不受 DST 影響，不重用 `TimeAggregationService`（那是彙總用的區間裁切，匯出需要完整明細）；修正了計畫範例程式碼裡一個真的 BOM bug（`Encoding.GetBytes()` 不會自動加 BOM，要手動接上 `GetPreamble()`），詳見 [`Docs/CsvExport.md`](CsvExport.md)
 - **釐清「Timer 卡片時區」的既有 TODO 項目其實是誤判**：`timer.js` 的即時顯示只算經過秒數，跟日曆日期/帳號時區無關，過去文件把它跟 History List 的時區 bug 混為一談。順手修好一個真的存在、跟這次調查相關的小 bug：`formatClock` 借道 `Date`/`toISOString` 換算，計時超過 24 小時會繞回 `00:00:00`；已抽成 `wwwroot/js/timer-state.mjs` 改用純整數運算修正，新增 `Tests/Unit/timer-state.test.mjs`。
+- RWD 切版（第 14 項）：三種版面帶（桌面固定側欄／平板窄桌面／手機，皆以 720px、900px 為門檻，沿用既有 `dashboard.css` 斷點，不新增第四種）、共用的 `_MobileNavigation.cshtml` 局部檢視 + `mobile-navigation.mjs`/`.js` 讓 Category/Tag/Settings 首次擁有行動裝置底部導覽（先前是死路）、原生 `<dialog>` 實作的「更多」底部彈出選單（無 polyfill、無第三方選單套件）、`dashboard.css` 統一 shell 規則（44px 觸控目標、安全區留白、`prefers-reduced-motion`）、順手修正 Settings 頁面「儲存」按鈕因未載入 `category-tag.css` 而完全無樣式的既有問題，詳見 [`Docs/Rwd.md`](Rwd.md)
 
 ## 下一步建議優先順序
-1. Calendar View 與 Report 尚未在真的瀏覽器裡驗證過視覺效果（桌面週欄、320px 單日、focus 順序），這個 session 沒有可用的瀏覽器自動化工具，建議接手後優先補上
+1. RWD 切版尚未在真的瀏覽器裡做視覺驗證（320×568、375×667 安全區模擬、768×1024、1024×768 四組矩陣，含 More sheet 鍵盤操作、200% 縮放、CJK 長名稱），這個 session 沒有可用的瀏覽器自動化工具，只做了 curl 結構驗證（單一 More dialog、五個導覽控制項、active 狀態、資源 200），建議接手後優先補上；同時 Calendar View 與 Report 各自的視覺效果也還沒驗證過
 2. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）——CSV export 本身已完成，但它失敗時的 log 事件還沒補（沿用專案既有慣例，跟其餘 logging 基礎設施一起做）
-3. AGENTS.md Implementation Order 的第 1–13 項已全數完成，剩下第 14（RWD 集中化，非必要）、15（錯誤處理/日誌）、16（部署）
+3. AGENTS.md Implementation Order 的第 1–14 項已全數完成，剩下第 15（錯誤處理/日誌）、16（部署）

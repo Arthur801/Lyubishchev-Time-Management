@@ -1,6 +1,6 @@
 # 專案交接摘要（給接手的 AI Agent）
 
-最後更新：2026-09-17，涵蓋到 CSV export 完成（依照 [`Docs/superpowers/specs/2026-09-17-csv-export-design.md`](superpowers/specs/2026-09-17-csv-export-design.md) 與 [`Docs/superpowers/plans/2026-09-17-csv-export.md`](superpowers/plans/2026-09-17-csv-export.md) 實作），細節見 [`Docs/CsvExport.md`](CsvExport.md)。再往前是 Report 完成（依照 [`Docs/superpowers/specs/2026-09-17-report-design.md`](superpowers/specs/2026-09-17-report-design.md) 與 [`Docs/superpowers/plans/2026-09-17-report.md`](superpowers/plans/2026-09-17-report.md) 實作），細節見 [`Docs/Report.md`](Report.md)。再往前是 Calendar View 完成（依照 [`Docs/superpowers/specs/2026-09-17-calendar-view-design.md`](superpowers/specs/2026-09-17-calendar-view-design.md) 與 [`Docs/superpowers/plans/2026-09-17-calendar-view.md`](superpowers/plans/2026-09-17-calendar-view.md) 實作），細節見 [`Docs/CalendarView.md`](CalendarView.md)。再往前是一次修正 DateTimeKind 序列化 bug 並把 History List 改用帳號時區（見下方「這個 session 中發現並修好的重要地雷」第 3 點），再更早是 Dashboard 真實資料串接完成（依照 [`Docs/superpowers/specs/2026-09-17-dashboard-design.md`](superpowers/specs/2026-09-17-dashboard-design.md) 與 [`Docs/superpowers/plans/2026-09-17-dashboard.md`](superpowers/plans/2026-09-17-dashboard.md) 實作）。再往前依序是 Timezone settings 與 TimeAggregationService（依照 [`Docs/superpowers/specs/2026-09-17-timezone-and-aggregation-design.md`](superpowers/specs/2026-09-17-timezone-and-aggregation-design.md) 與對應的 [`Docs/superpowers/plans/2026-09-17-timezone-settings.md`](superpowers/plans/2026-09-17-timezone-settings.md)、[`Docs/superpowers/plans/2026-09-17-time-aggregation-service.md`](superpowers/plans/2026-09-17-time-aggregation-service.md) 實作），再更早是 Category/Tag 管理功能（依照 [`Docs/superpowers/specs/2026-09-17-category-tag-management-design.md`](superpowers/specs/2026-09-17-category-tag-management-design.md) 與 [`Docs/superpowers/plans/2026-09-17-category-tag-management.md`](superpowers/plans/2026-09-17-category-tag-management.md) 實作）。本文件的目的是讓另一個 AI agent 不需要重新爬梳整個對話記錄，就能接續目前的進度。**開始工作前務必先讀 `AGENTS.md`（專案根目錄，`CLAUDE.md` 只是 `@AGENTS.md` 的轉介）——那是這個專案唯一的權威規格文件，所有設計決策都必須對齊它。**
+最後更新：2026-09-17，涵蓋到 RWD 切版完成（依照 [`Docs/superpowers/specs/2026-09-17-rwd-design.md`](superpowers/specs/2026-09-17-rwd-design.md) 與 [`Docs/superpowers/plans/2026-09-17-rwd.md`](superpowers/plans/2026-09-17-rwd.md) 實作），細節見 [`Docs/Rwd.md`](Rwd.md)。再往前是 CSV export 完成（依照 [`Docs/superpowers/specs/2026-09-17-csv-export-design.md`](superpowers/specs/2026-09-17-csv-export-design.md) 與 [`Docs/superpowers/plans/2026-09-17-csv-export.md`](superpowers/plans/2026-09-17-csv-export.md) 實作），細節見 [`Docs/CsvExport.md`](CsvExport.md)。再往前是 Report 完成（依照 [`Docs/superpowers/specs/2026-09-17-report-design.md`](superpowers/specs/2026-09-17-report-design.md) 與 [`Docs/superpowers/plans/2026-09-17-report.md`](superpowers/plans/2026-09-17-report.md) 實作），細節見 [`Docs/Report.md`](Report.md)。再往前是 Calendar View 完成（依照 [`Docs/superpowers/specs/2026-09-17-calendar-view-design.md`](superpowers/specs/2026-09-17-calendar-view-design.md) 與 [`Docs/superpowers/plans/2026-09-17-calendar-view.md`](superpowers/plans/2026-09-17-calendar-view.md) 實作），細節見 [`Docs/CalendarView.md`](CalendarView.md)。再往前是一次修正 DateTimeKind 序列化 bug 並把 History List 改用帳號時區（見下方「這個 session 中發現並修好的重要地雷」第 3 點），再更早是 Dashboard 真實資料串接完成（依照 [`Docs/superpowers/specs/2026-09-17-dashboard-design.md`](superpowers/specs/2026-09-17-dashboard-design.md) 與 [`Docs/superpowers/plans/2026-09-17-dashboard.md`](superpowers/plans/2026-09-17-dashboard.md) 實作）。再往前依序是 Timezone settings 與 TimeAggregationService（依照 [`Docs/superpowers/specs/2026-09-17-timezone-and-aggregation-design.md`](superpowers/specs/2026-09-17-timezone-and-aggregation-design.md) 與對應的 [`Docs/superpowers/plans/2026-09-17-timezone-settings.md`](superpowers/plans/2026-09-17-timezone-settings.md)、[`Docs/superpowers/plans/2026-09-17-time-aggregation-service.md`](superpowers/plans/2026-09-17-time-aggregation-service.md) 實作），再更早是 Category/Tag 管理功能（依照 [`Docs/superpowers/specs/2026-09-17-category-tag-management-design.md`](superpowers/specs/2026-09-17-category-tag-management-design.md) 與 [`Docs/superpowers/plans/2026-09-17-category-tag-management.md`](superpowers/plans/2026-09-17-category-tag-management.md) 實作）。本文件的目的是讓另一個 AI agent 不需要重新爬梳整個對話記錄，就能接續目前的進度。**開始工作前務必先讀 `AGENTS.md`（專案根目錄，`CLAUDE.md` 只是 `@AGENTS.md` 的轉介）——那是這個專案唯一的權威規格文件，所有設計決策都必須對齊它。**
 
 ---
 
@@ -31,14 +31,14 @@
 | 11 | Report | ✅ 完成，Category 圓餅圖與 Tag 長條圖皆為真實資料，只轉接 `TimeAggregationService` 不重寫聚合邏輯 | [`Docs/Report.md`](Report.md) |
 | 12 | Timezone settings | ✅ 完成（`/Settings` 頁面可選、持久化；Dashboard/History List/Calendar/Report/CSV export 皆已改用帳號時區；Timer 卡片經查證後不需要改——它的即時顯示只算經過秒數，跟日曆日期/時區無關，見下方「這個 session 中發現並修好的重要地雷」第 4 點） | [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md) |
 | 13 | CSV export | ✅ 完成，`GET /api/time-entries/export` 不分頁輸出目前 History 篩選值命中的全部 TimeEntry，UTF-8 BOM RFC 4180、帳號時區顯示、時長不受 DST 影響 | [`Docs/CsvExport.md`](CsvExport.md) |
-| 14 | RWD | 🟡 各頁面 CSS 內建 media query，但沒有集中在 `responsive.css` | — |
+| 14 | RWD | ✅ 完成，共用 `_MobileNavigation.cshtml` + 原生 `<dialog>` More sheet，Category/Tag/Settings 首次有行動底部導覽，`dashboard.css` 統一 shell 層 44px 觸控目標/安全區/`prefers-reduced-motion` | [`Docs/Rwd.md`](Rwd.md) |
 | 15 | Error handling / Logging / Rate limit | 🟡 Rate limiting 與 CSRF 已完成；global exception handler 未確認；`Infrastructure/Logging` 只有 auth 事件（CSV export failure 尚未補 log 事件） | [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md) |
 | 16 | Nginx / EC2 / Backup | ❌ 未開始 | — |
 
-**AGENTS.md Implementation Order 第 1–13 項已全數完成**，剩下第 14（RWD 集中化，非必要）、15（錯誤處理/日誌）、16（部署）。
+**AGENTS.md Implementation Order 第 1–14 項已全數完成**，剩下第 15（錯誤處理/日誌）、16（部署）。
 
 **建議下一步優先順序**（`Docs/TODO.md` 目前寫的）：
-1. Calendar View 與 Report 都尚未在真的瀏覽器裡驗證過視覺效果，建議接手後優先補上
+1. RWD 切版還沒在真的瀏覽器裡做視覺驗證（320×568、375×667 安全區模擬、768×1024、1024×768 四組矩陣，含 More sheet 鍵盤操作/200% 縮放/CJK 長名稱），這個 session 只做了 curl 結構驗證；Calendar View 與 Report 各自的視覺效果也還沒驗證過
 2. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）
 
 ---
@@ -128,6 +128,21 @@
 
 ---
 
+## RWD（第 14 項）實作紀錄
+
+依照 [`Docs/superpowers/specs/2026-09-17-rwd-design.md`](superpowers/specs/2026-09-17-rwd-design.md) 與 [`Docs/superpowers/plans/2026-09-17-rwd.md`](superpowers/plans/2026-09-17-rwd.md) 實作，完整細節見獨立文件 [`Docs/Rwd.md`](Rwd.md)，這裡只記重點：
+
+- **不是新功能，是把既有六個頁面各自重複的側欄/行動 header/底部導覽標記收斂成一份共用局部檢視**：`Views/Shared/_MobileNavigation.cshtml`（`@model string` 決定 active 狀態）+ `wwwroot/js/mobile-navigation.mjs`/`.js`。三個版面帶（桌面 `>=901px`、平板/窄桌面 `721–900px`、手機 `<=720px`）完全沿用 `dashboard.css` 既有的 900px/720px/430px 斷點，沒有新增第四種導覽模式。
+- **Category、Tag、Settings 先前在手機上完全沒有底部導覽（死路）**，這次補齊；底部導覽固定五項（Dashboard/歷史紀錄/報表/設定/更多），Category、Tag 收進原生 `<dialog>` 實作的「更多」底部彈出選單，不佔用第六個固定項目、也不需要第三方選單/對話框套件。
+- **`createMoreSheetController` 把三種關閉路徑（關閉鈕、backdrop 點擊、瀏覽器原生 Escape）收斂成同一段 `dialog` 的 `close` 事件處理**，只在那裡同步 `aria-expanded` 跟把 focus 還給觸發按鈕，不用在三個地方各寫一次。
+- **順手修好一個既有 bug**：`Views/Settings/Index.cshtml` 從來沒有載入 `category-tag.css`，但「儲存」按鈕的 class 是 `primary-button`，這個 class 唯一的定義過去只在 `category-tag.css` 裡——代表 Settings 的儲存按鈕一直是瀏覽器預設樣式，完全沒套用設計。修法是把 `.primary-button` 移到每頁都會載入的 `dashboard.css`，當成跟 `.outline-button` 同等級的共用元件。
+- **順手修好一個 `git diff --check` 的假警訊**：`_Layout.cshtml` 是全專案唯一一個 CRLF 檔案（其餘 `.cshtml`/`.css`/`.js` 全部是 LF），插入新的一行後，git 預設的 `core.whitespace`（沒開 `cr-at-eol`）會把每一行結尾的 `\r` 當成 trailing whitespace，但只有「新增的那一行」會被 `git diff --check` 檢查到（既有的 context 行不會）。**這不是我的新行有問題，是這個檔案本來的換行慣例跟全專案不一致**——已把整個檔案統一成 LF，跟其餘檔案一致，順便讓這個假警訊消失。
+- **Calendar 的 768px matchMedia 斷點刻意沒有跟著「一律改用 720px」**：`calendar.js` 用 `window.matchMedia('(min-width: 768px)')` 決定要抓「一週」還是「一天」的資料，這是資料抓取邏輯，不是純視覺斷點；如果改成跟 RWD 的 720px 手機帶對齊，會讓 721–767px 這段視覺上看起來像手機（單欄）但 JS 還在抓一整週的資料，兩者不一致。CSS 裡新增的 `.calendar-nav{width:100%}` 等規則沿用原本的 768px 是刻意的。
+- **測試**：新增 `Tests/Unit/mobile-navigation.test.mjs`（5 個測試，`FakeElement`/`FakeDialog` 假元件，`FakeDialog.close()` 會像真的 `<dialog>` 一樣觸發 `close` 事件），涵蓋 `isMoreSection` 分類、開啟時 `aria-expanded`/focus 同步、backdrop 關閉＋焦點還原、面板內點擊不關閉、關閉鈕。`Tests/Unit/` 目前共 27 個 Node 測試全過；三個 C# 測試專案（`AuthFlow.Tests`/`TimerFlow.Tests`/`TimeEntryFlow.Tests`，105 個）重跑確認沒有迴歸（RWD 沒有動到任何後端邏輯）。`git diff --check` 確認乾淨。
+- **手動驗證**：本機啟動 `dotnet run --no-build`（port 5180），用 `curl` 走完整流程：註冊 → 六個受保護頁面各自 `GET` 200、恰好一個 `#more-sheet`、五個底部導覽控制項、active 狀態正確對應目前路由（含 More 按鈕在 Category/Tag 頁面上顯示 active）、品牌連結不再是 `href="#"`、`icon-button` markup 完全移除、More sheet 內的 Category/Tag/登出連結正確、桌面側欄 active 狀態正確 → 確認 `dashboard.css`/`report.css`/`history.css`/`calendar.css`/`category-tag.css`/`settings.css`/`auth.css`/`mobile-navigation.js`/`.mjs` 皆可靜態存取（200）→ Login/Register 頁面 200、`auth.css` 含新增的 479px 規則。**這個 session 同樣沒有可用的瀏覽器自動化工具，設計文件要求的四組視覺驗收矩陣（見「尚未涵蓋的部分」）沒有跑過**，只做了上述的結構面 curl 驗證。驗證用的測試帳號已用 `mysql` CLI（`dotnet user-secrets list` 取得本機開發連線資訊）直接刪除。
+
+---
+
 ## 已建立的架構慣例（新功能請比照辦理，不要另創一套）
 
 這些慣例是在做第 2～4 項的過程中逐步確立的，具有約束力，之後每一項都應該延續：
@@ -153,6 +168,7 @@
 - 標籤（Tag）chip 編輯器的 UI/互動模式已經定型（輸入框 + Enter 或按鈕加入、每個 chip 有 × 移除按鈕），`timer.js` 先做出來，`time-entry.js` 的新增/編輯表單直接複用同一套模式，之後如果要做 Tag 管理頁面，也建議延續。
 - **時區處理仍未完全收尾，但已有進展**：Settings/timezone（第 12 項）、Dashboard（第 10 項）、History List、Calendar View、Report（第 11 項）都已完成，都正確使用 `TimeAggregationService`/帳號時區。**只剩 Timer 卡片（`timer.js`）的即時顯示仍是用瀏覽器本地時區（`new Date()` + `.toISOString()`），還沒有改成讀取使用者設定的時區**——留給後續專門處理（見「建議下一步優先順序」第 1 項）。
 - Dashboard 的統計卡片/圖表（`dashboard.js` + `dashboard-state.mjs`）**mock data 已全部移除**，改為對 `/api/dashboard` 發真實 fetch；`dashboard-state.mjs` 現在只保留 `formatDuration`/`isValidDateRange` 兩個純函式，細節見 [`Docs/Dashboard.md`](Dashboard.md)。
+- **行動裝置導覽已經統一**：六個受保護頁面都用 `<partial name="_MobileNavigation" model="@("dashboard"|"time-entry"|"report"|"category"|"tag"|"settings")" />`，不要再手刻 `<nav class="mobile-nav">`；新增頁面時比照這個模式加一行 partial 呼叫即可自動拿到五項底部導覽跟「更多」選單，不用重複任何標記。`mobile-navigation.js` 已經在 `_Layout.cshtml` 全站載入一次，不需要每頁各自 `<script>` 引入。
 
 ---
 
@@ -177,9 +193,9 @@
 
 ## 開始接手前建議的檢查清單
 
-1. `git log --oneline -5` 確認目前在 Report 完成之後（若使用者又做了其他修改，先弄清楚差異）。
+1. `git log --oneline -5` 確認目前在 RWD 切版完成之後（若使用者又做了其他修改，先弄清楚差異）。
 2. 讀 `AGENTS.md` 全文一次（規則沒有變過，但務必自己確認，不要只信這份摘要）。
 3. 讀 `Docs/TODO.md` 確認目前狀態（這份文件比本摘要新，衝突時以 `TODO.md` 為準）。
-4. 依使用者這次想做的項目，讀對應的 `Docs/*.md` 設計文件（`JWT.md`／`RateLimitingAndAuthLogging.md`／`RunningTimerStartStop.md`／`TimeEntryCrud.md`／`superpowers/specs/2026-09-17-category-tag-management-design.md`／[`TimezoneAndAggregation.md`](TimezoneAndAggregation.md)／[`Dashboard.md`](Dashboard.md)／[`CalendarView.md`](CalendarView.md)／[`Report.md`](Report.md)）取得可重用的既有模式與已知的取捨/限制。
-5. 動工前先 `dotnet build "Lyubishchev Time Management.csproj"` 一次確認目前基準是綠的，再依序跑三個測試專案（`AuthFlow.Tests`、`TimerFlow.Tests`、`TimeEntryFlow.Tests`，最後這個數字最容易隨新功能成長，實際跑一次以現況為準——完成 Report 後是 97 個）確認全過，作為「改動前」的基準線；有動到 `wwwroot/js/dashboard*.mjs`/`report*.js` 或對應 `Views/*.cshtml`/`Views/Shared/_Layout.cshtml` 的話再額外跑 `node --test Tests/Unit/dashboard-frontend.test.mjs`。
+4. 依使用者這次想做的項目，讀對應的 `Docs/*.md` 設計文件（`JWT.md`／`RateLimitingAndAuthLogging.md`／`RunningTimerStartStop.md`／`TimeEntryCrud.md`／`superpowers/specs/2026-09-17-category-tag-management-design.md`／[`TimezoneAndAggregation.md`](TimezoneAndAggregation.md)／[`Dashboard.md`](Dashboard.md)／[`CalendarView.md`](CalendarView.md)／[`Report.md`](Report.md)／[`CsvExport.md`](CsvExport.md)／[`Rwd.md`](Rwd.md)）取得可重用的既有模式與已知的取捨/限制。
+5. 動工前先 `dotnet build "Lyubishchev Time Management.csproj"` 一次確認目前基準是綠的，再依序跑三個測試專案（`AuthFlow.Tests`、`TimerFlow.Tests`、`TimeEntryFlow.Tests`，最後這個數字最容易隨新功能成長，實際跑一次以現況為準——完成 RWD 後是 105 個）確認全過，作為「改動前」的基準線；有動到任一頁面的 `Views/*.cshtml`、`wwwroot/js/dashboard*.mjs`/`report*.js`、`Views/Shared/_Layout.cshtml`/`_MobileNavigation.cshtml` 的話再額外跑 `node --test Tests/Unit/*.test.mjs`（目前 27 個）。
 6. 做完之後：更新 `Docs/TODO.md`、視情況新增一份 `Docs/<功能名稱>.md`（比照既有文件的格式：設計思路 → 整體流程 → 檔案清單與內容 → 尚未涵蓋的部分），並在自動化測試全過之後，額外跑一次真實伺服器手動驗證再回報完成。
