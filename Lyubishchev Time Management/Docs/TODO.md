@@ -99,6 +99,7 @@
 - [x] Dashboard 側欄/行動 header 的品牌連結從 `href="#"` 改為 `asp-controller="Dashboard" asp-action="Index"`；六個頁面行動 header 移除原本無作用的 ⚙ icon button（`.icon-button` CSS 也一併移除，不留死程式碼）
 - [x] `history.css`（篩選器手機滿版、`entry-name`/`entry-actions` 長文字換行、`icon-btn` 手機 44px）、`calendar.css`（週格保留內部捲動＋捲軸提示、日模式工具列手機滿版，不動既有 768px 的週/日切換門檻，因為那是 `calendar.js` 判斷資料抓取模式用的，不是純視覺斷點）、`report.css`（legend/tag row 允許換行但保持名稱與時長成對）、`category-tag.css`（長名稱 `overflow-wrap:anywhere`）、`auth.css`（`<=479px` 用 16px 邊距、44px 密碼顯示按鈕、84px 輸入框右側留白）
 - [x] `Tests/Unit/mobile-navigation.test.mjs`（5 個測試：`isMoreSection`、開啟狀態同步、backdrop 關閉＋焦點還原、面板內點擊不關閉、關閉鈕）
+- [x] **視覺驗證已補上**：用 headless Chrome（`chrome.exe --headless=new --remote-debugging-port`）+ Node 內建 `WebSocket` 直接講 Chrome DevTools Protocol 截圖（不需安裝 Playwright/Puppeteer），對六個頁面在 320×568／375×667／768×1024／1024×768 四組視窗尺寸下截圖，額外驗證 More sheet、新增紀錄對話框、Calendar 週視圖，含長分類名稱與長標籤名稱的真實資料。**沒有發現任何視覺缺陷**（無水平溢出、底部導覽/側欄正確切換、長文字正確換行、對話框動作按鈕不被遮住）。細節見 [`Docs/Rwd.md`](Rwd.md) 的「視覺驗證」一節
 - 詳細實作說明見 [`Docs/Rwd.md`](Rwd.md)
 
 ## 15. Error handling / Logging / Rate limit
@@ -148,6 +149,6 @@
 - RWD 切版（第 14 項）：三種版面帶（桌面固定側欄／平板窄桌面／手機，皆以 720px、900px 為門檻，沿用既有 `dashboard.css` 斷點，不新增第四種）、共用的 `_MobileNavigation.cshtml` 局部檢視 + `mobile-navigation.mjs`/`.js` 讓 Category/Tag/Settings 首次擁有行動裝置底部導覽（先前是死路）、原生 `<dialog>` 實作的「更多」底部彈出選單（無 polyfill、無第三方選單套件）、`dashboard.css` 統一 shell 規則（44px 觸控目標、安全區留白、`prefers-reduced-motion`）、順手修正 Settings 頁面「儲存」按鈕因未載入 `category-tag.css` 而完全無樣式的既有問題，詳見 [`Docs/Rwd.md`](Rwd.md)
 
 ## 下一步建議優先順序
-1. RWD 切版尚未在真的瀏覽器裡做視覺驗證（320×568、375×667 安全區模擬、768×1024、1024×768 四組矩陣，含 More sheet 鍵盤操作、200% 縮放、CJK 長名稱），這個 session 沒有可用的瀏覽器自動化工具，只做了 curl 結構驗證（單一 More dialog、五個導覽控制項、active 狀態、資源 200），建議接手後優先補上；同時 Calendar View 與 Report 各自的視覺效果也還沒驗證過
+1. 200% 瀏覽器縮放、鍵盤 Tab 順序、螢幕閱讀器 focus 走向這幾項 RWD 驗收矩陣要求的細節，截圖驗證看不出來，需要真人操作瀏覽器才能補（見 [`Docs/Rwd.md`](Rwd.md) 的「尚未涵蓋的部分」）
 2. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）——CSV export 本身已完成，但它失敗時的 log 事件還沒補（沿用專案既有慣例，跟其餘 logging 基礎設施一起做）
 3. AGENTS.md Implementation Order 的第 1–14 項已全數完成，剩下第 15（錯誤處理/日誌）、16（部署）

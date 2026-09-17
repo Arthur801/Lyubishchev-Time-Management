@@ -31,14 +31,14 @@
 | 11 | Report | ✅ 完成，Category 圓餅圖與 Tag 長條圖皆為真實資料，只轉接 `TimeAggregationService` 不重寫聚合邏輯 | [`Docs/Report.md`](Report.md) |
 | 12 | Timezone settings | ✅ 完成（`/Settings` 頁面可選、持久化；Dashboard/History List/Calendar/Report/CSV export 皆已改用帳號時區；Timer 卡片經查證後不需要改——它的即時顯示只算經過秒數，跟日曆日期/時區無關，見下方「這個 session 中發現並修好的重要地雷」第 4 點） | [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md) |
 | 13 | CSV export | ✅ 完成，`GET /api/time-entries/export` 不分頁輸出目前 History 篩選值命中的全部 TimeEntry，UTF-8 BOM RFC 4180、帳號時區顯示、時長不受 DST 影響 | [`Docs/CsvExport.md`](CsvExport.md) |
-| 14 | RWD | ✅ 完成，共用 `_MobileNavigation.cshtml` + 原生 `<dialog>` More sheet，Category/Tag/Settings 首次有行動底部導覽，`dashboard.css` 統一 shell 層 44px 觸控目標/安全區/`prefers-reduced-motion` | [`Docs/Rwd.md`](Rwd.md) |
+| 14 | RWD | ✅ 完成，共用 `_MobileNavigation.cshtml` + 原生 `<dialog>` More sheet，Category/Tag/Settings 首次有行動底部導覽，`dashboard.css` 統一 shell 層 44px 觸控目標/安全區/`prefers-reduced-motion`；**視覺驗證已補上**（headless Chrome CDP 截圖，320×568/375×667/768×1024/1024×768 四組視窗，沒有發現視覺缺陷） | [`Docs/Rwd.md`](Rwd.md) |
 | 15 | Error handling / Logging / Rate limit | 🟡 Rate limiting 與 CSRF 已完成；global exception handler 未確認；`Infrastructure/Logging` 只有 auth 事件（CSV export failure 尚未補 log 事件） | [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md) |
 | 16 | Nginx / EC2 / Backup | ❌ 未開始 | — |
 
 **AGENTS.md Implementation Order 第 1–14 項已全數完成**，剩下第 15（錯誤處理/日誌）、16（部署）。
 
 **建議下一步優先順序**（`Docs/TODO.md` 目前寫的）：
-1. RWD 切版還沒在真的瀏覽器裡做視覺驗證（320×568、375×667 安全區模擬、768×1024、1024×768 四組矩陣，含 More sheet 鍵盤操作/200% 縮放/CJK 長名稱），這個 session 只做了 curl 結構驗證；Calendar View 與 Report 各自的視覺效果也還沒驗證過
+1. RWD 視覺驗收矩陣裡剩 200% 瀏覽器縮放、鍵盤 Tab 順序、螢幕閱讀器 focus 走向這幾項還沒測——這些是截圖驗證看不出來的，需要真人操作瀏覽器才能補
 2. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）
 
 ---
@@ -139,7 +139,8 @@
 - **順手修好一個 `git diff --check` 的假警訊**：`_Layout.cshtml` 是全專案唯一一個 CRLF 檔案（其餘 `.cshtml`/`.css`/`.js` 全部是 LF），插入新的一行後，git 預設的 `core.whitespace`（沒開 `cr-at-eol`）會把每一行結尾的 `\r` 當成 trailing whitespace，但只有「新增的那一行」會被 `git diff --check` 檢查到（既有的 context 行不會）。**這不是我的新行有問題，是這個檔案本來的換行慣例跟全專案不一致**——已把整個檔案統一成 LF，跟其餘檔案一致，順便讓這個假警訊消失。
 - **Calendar 的 768px matchMedia 斷點刻意沒有跟著「一律改用 720px」**：`calendar.js` 用 `window.matchMedia('(min-width: 768px)')` 決定要抓「一週」還是「一天」的資料，這是資料抓取邏輯，不是純視覺斷點；如果改成跟 RWD 的 720px 手機帶對齊，會讓 721–767px 這段視覺上看起來像手機（單欄）但 JS 還在抓一整週的資料，兩者不一致。CSS 裡新增的 `.calendar-nav{width:100%}` 等規則沿用原本的 768px 是刻意的。
 - **測試**：新增 `Tests/Unit/mobile-navigation.test.mjs`（5 個測試，`FakeElement`/`FakeDialog` 假元件，`FakeDialog.close()` 會像真的 `<dialog>` 一樣觸發 `close` 事件），涵蓋 `isMoreSection` 分類、開啟時 `aria-expanded`/focus 同步、backdrop 關閉＋焦點還原、面板內點擊不關閉、關閉鈕。`Tests/Unit/` 目前共 27 個 Node 測試全過；三個 C# 測試專案（`AuthFlow.Tests`/`TimerFlow.Tests`/`TimeEntryFlow.Tests`，105 個）重跑確認沒有迴歸（RWD 沒有動到任何後端邏輯）。`git diff --check` 確認乾淨。
-- **手動驗證**：本機啟動 `dotnet run --no-build`（port 5180），用 `curl` 走完整流程：註冊 → 六個受保護頁面各自 `GET` 200、恰好一個 `#more-sheet`、五個底部導覽控制項、active 狀態正確對應目前路由（含 More 按鈕在 Category/Tag 頁面上顯示 active）、品牌連結不再是 `href="#"`、`icon-button` markup 完全移除、More sheet 內的 Category/Tag/登出連結正確、桌面側欄 active 狀態正確 → 確認 `dashboard.css`/`report.css`/`history.css`/`calendar.css`/`category-tag.css`/`settings.css`/`auth.css`/`mobile-navigation.js`/`.mjs` 皆可靜態存取（200）→ Login/Register 頁面 200、`auth.css` 含新增的 479px 規則。**這個 session 同樣沒有可用的瀏覽器自動化工具，設計文件要求的四組視覺驗收矩陣（見「尚未涵蓋的部分」）沒有跑過**，只做了上述的結構面 curl 驗證。驗證用的測試帳號已用 `mysql` CLI（`dotnet user-secrets list` 取得本機開發連線資訊）直接刪除。
+- **手動驗證（結構面）**：本機啟動 `dotnet run --no-build`（port 5180），用 `curl` 走完整流程：註冊 → 六個受保護頁面各自 `GET` 200、恰好一個 `#more-sheet`、五個底部導覽控制項、active 狀態正確對應目前路由（含 More 按鈕在 Category/Tag 頁面上顯示 active）、品牌連結不再是 `href="#"`、`icon-button` markup 完全移除、More sheet 內的 Category/Tag/登出連結正確、桌面側欄 active 狀態正確 → 確認 `dashboard.css`/`report.css`/`history.css`/`calendar.css`/`category-tag.css`/`settings.css`/`auth.css`/`mobile-navigation.js`/`.mjs` 皆可靜態存取（200）→ Login/Register 頁面 200、`auth.css` 含新增的 479px 規則。驗證用的測試帳號已用 `mysql` CLI（`dotnet user-secrets list` 取得本機開發連線資訊）直接刪除。
+- **視覺驗證（後續 session 補上）**：這台機器有 Chrome 但沒裝 Playwright/Puppeteer，改用 Node 24 內建的 `WebSocket` 直接對 `chrome.exe --headless=new --remote-debugging-port` 講 Chrome DevTools Protocol（`Page.navigate`/`Emulation.setDeviceMetricsOverride`/`Page.captureScreenshot`），不用裝任何 npm 套件。對六個頁面在 320×568／375×667／768×1024／1024×768 四組視窗尺寸下截圖，額外開 More sheet、新增紀錄對話框、Calendar 週視圖，資料裡刻意放了長分類名稱與長標籤名稱驗證換行。**逐張截圖檢視後沒有發現任何視覺缺陷**：320px 四頁皆無水平溢出、長分類名稱正確在卡片內換行；375px More sheet 底部彈出樣式正確、對話框儲存/取消按鈕在底部導覽上方清楚可見；768px Report 收成單欄（Category 在上 Tag 在下）、Calendar 週視圖橫向排列正常；1024px 桌面側欄六連結＋登出正確顯示、Report 雙欄且 legend 百分比與時長正確配對。過程中兩個值得記的插曲，寫進 [`Docs/Rwd.md`](Rwd.md) 的「視覺驗證」一節：(1) 驗證期間並行 session 的 build/restart 循環把共享的 dev server 砍了好幾次，讓驗證腳本自己學會偵測健康狀態、必要時自行 `spawn` 一份 `dotnet run --no-build`，也用 `SendMessage` 跟對方協調暫停幾分鐘；(2) 驗證腳本一開始重用了登入前頁面的 CSRF token 去打登入後的 API，每次都吃一個空 body 的 `400`——ASP.NET Core 的 antiforgery token 會把「當下是否已驗證身分」編進去，登入前產生的 token 在登入後失效是預期行為，不是產品 bug，改成登入成功後先導到 `/Dashboard` 重新拿 token 就正常了。驗證用的測試資料（5 個測試帳號，含中途失敗留下的）已用 `mysql` CLI 依 FK 順序清乾淨。
 
 ---
 

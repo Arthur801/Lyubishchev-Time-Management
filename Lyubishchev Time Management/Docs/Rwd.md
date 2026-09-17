@@ -44,10 +44,26 @@
 - `wwwroot/css/auth.css`（修改）：`<=479px` 的 `.auth-page__main`/`.login-card` padding 從 `20px`/`28px 24px` 改成統一 `16px`；新增 `.password-field input{padding-right:84px}`（原本 `70px`，密碼顯示按鈕在小螢幕變 44px 寬後需要更多留白）與 `.password-toggle{min-width:44px;min-height:44px}`。`.login-submit`/`.form-group input` 本來就已經是 `min-height:44px`，沒有重複加規則。
 - `Tests/Unit/mobile-navigation.test.mjs`（新增）：5 個測試，`FakeElement`/`FakeDialog` 假元件（`addEventListener`/`dispatch`/`setAttribute`/`getAttribute`/`focus`，`FakeDialog` 額外有 `open`/`showModal`/`close`，`close()` 會像真的 `<dialog>` 一樣觸發 `close` 事件），涵蓋 `isMoreSection` 分類、開啟時 `aria-expanded`/focus 同步、backdrop 點擊關閉＋焦點還原、面板內點擊不關閉、關閉鈕點擊關閉。
 
+## 視覺驗證（後續 session 補上）
+
+第一輪實作完成時這個 session 沒有可用的瀏覽器自動化工具，視覺驗證留給接手者。**後續一個 session 補上了**：這台機器有安裝 Chrome 但沒有 Playwright/Puppeteer，改用 Node 內建的 `WebSocket`（Node 24）直接對 `chrome.exe --headless=new --remote-debugging-port=9333` 講 Chrome DevTools Protocol（`Page.navigate`/`Emulation.setDeviceMetricsOverride`/`Page.captureScreenshot`/`Runtime.evaluate`），不需要安裝任何 npm 套件。流程：註冊一個測試帳號、建立 2 個 Category（其中一個刻意取長名稱）與 3 筆 TimeEntry（含多 Tag、一個刻意取長標籤名），然後對六個頁面在四組視窗尺寸下（320×568、375×667、768×1024、1024×768）截圖，並額外開啟 More sheet、新增紀錄對話框、Calendar 週視圖驗證互動狀態。
+
+**結果：沒有發現任何視覺缺陷。** 具體確認：
+- 320×568：Dashboard／History／Category／Login 四頁皆無水平溢出，底部五項導覽全部可點擊，Timer 卡片欄位正確縮成單欄，長分類名稱（"Deep Work With A Fairly Long Category Name"）在卡片內正確換行而不撐開版面。
+- 375×667：More sheet 正確以底部彈出樣式顯示（45% 遮罩、Category/Tag/登出三個連結、關閉鈕），新增紀錄對話框的儲存/取消按鈕在底部導覽上方清楚可見、未被遮住。
+- 768×1024：Calendar 週視圖橫向排列正常、底部導覽仍在（平板帶）；Report 頁面確認收成單欄、Category 在上 Tag 在下；長標籤名稱（"a-fairly-long-tag-name"）正確換行、不破版。
+- 1024×768：桌面側欄正確顯示六個直接連結＋登出，無行動 header/底部導覽殘留；Report 頁面確認桌面雙欄，Category legend 的百分比與時長正確配對（44%／33%／22%），Tag 長條圖寬度按最大值比例正確縮放。
+
+驗證用的測試資料與帳號已用 `mysql` CLI 手動刪除（`DELETE` 依 FK 順序：`TimeEntryTags` → `TimeEntries` → `Categories`/`Tags` → `Users`；直接 `DELETE FROM Users` 會因為 FK 約束報錯，要先清子表）。
+
+**過程中的插曲，記錄下來避免下次重複踩雷**：
+- 這個環境的 dev server（port 5180）在驗證期間被另一個並行 session（同時在做 error-handling-and-logging 功能）的 build/restart 循環中途砍掉了好幾次，導致 fetch 呼叫在請求中途失敗。解法是讓驗證腳本自己在每個階段前先探測伺服器健康狀態，探測失敗就自己 `spawn('dotnet', ['run', '--no-build'])` 背景啟動一份，而不是單純重試一個已經死掉的伺服器。也用 `ListAgents`/`SendMessage` 跟對方 session 打了聲招呼請它暫緩幾分鐘，事後也回報「port 已經還你了」。
+- 踩到一個更值得記的坑：**驗證腳本一開始重用了「登入前」頁面渲染出來的 CSRF token 去打登入後才能呼叫的 API，結果每次都收到一個完全空 body 的 `400`。** 原因是 ASP.NET Core 預設的 antiforgery token 產生器會把「目前是否已驗證身分」編進 token 裡；註冊成功後瀏覽器雖然已經拿到 `ltm_auth` Cookie，但如果沒有重新整理頁面（真實使用者的註冊表單成功後一定會導向 `/Dashboard` 重新渲染），拿著登入前那個 token 打 API 一定會驗證失敗——這不是產品的 bug，純粹是驗證腳本抄了捷徑（沒有像真實瀏覽器那樣導向新頁面重新拿 token）。修法：註冊成功後先 `navigate` 到 `/Dashboard`，用那個頁面重新渲染出來的 token 才去打其餘 API。這個坑也解釋了為什麼這次 session 之前所有 curl 驗證都沒遇過——curl 腳本一律是在登入成功「之後」才用新的頁面回應重新讀一次 CSRF token，從來沒有重用登入前的舊 token。
+
 ## 尚未涵蓋的部分
 
-- **沒有在真的瀏覽器裡做視覺驗證**：這個 session 沒有可用的瀏覽器自動化工具（跟 Dashboard/Calendar/Report 那幾次一樣的既有限制），設計文件列的四組驗收矩陣（320×568、375×667 安全區模擬、768×1024、1024×768，含鍵盤操作、200% 縮放、CJK 長名稱資料集）**沒有**實際跑過，只用 curl 做了結構面驗證：六個頁面各自 `GET` 200、恰好一個 `#more-sheet`、五個底部導覽控制項、active 狀態正確對應目前路由、品牌連結不再是 `href="#"`、`.icon-button` markup 完全移除、`mobile-navigation.js`/`report.css`/`history.css`/`calendar.css`/`category-tag.css`/`settings.css`/`auth.css` 皆可靜態存取。接手後建議優先補視覺驗證這一步。
-- Calendar View（第 8 項）與 Report（第 11 項）先前留下的「沒有在真瀏覽器驗證過」缺口，這次也還沒補——RWD 這次只確保它們在新的共用導覽/shell 規則下結構正確，沒有重新做一次完整的手動視覺驗證。
+- 200% 瀏覽器縮放、鍵盤 Tab 順序、螢幕閱讀器 focus 走向這幾項驗收矩陣要求的細節，CDP 截圖驗證只能看版面不能看鍵盤/AT 行為，仍然沒有實際測試過，需要真人操作瀏覽器才能補。
+- Calendar View（第 8 項）與 Report（第 11 項）先前留下的「沒有在真瀏覽器驗證過」缺口，這次視覺驗證已經一併覆蓋到（見上方結果），但沒有針對這兩個功能本身的互動/資料正確性做額外的回歸測試，只確認了版面。
 - `wwwroot/css/responsive.css` 依然是空檔案且未被任何頁面載入——設計文件允許「集中在 `dashboard.css`（現況）或一個明確命名的 `responsive.css`」兩種做法，這次選擇前者（`dashboard.css` 本來就已經是 shell 樣式的權威來源），所以 `responsive.css` 維持空檔案是刻意的，不是遺漏。
 - 沒有新增任何 CSS 框架、選單/對話框第三方套件、動畫系統、桌面新設計或主題切換，也沒有把「更多」變成一個獨立路由——完全比照設計文件「不在範圍」清單。
 - 沒有動到 Calendar 的 overlap 查詢、帳號時區換算、唯讀行為、事件定位計算，也沒有動到 Report 的聚合邏輯或 CSV 契約。
