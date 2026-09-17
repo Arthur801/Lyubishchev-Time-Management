@@ -10,11 +10,11 @@
 - **Stop 用「交易 + EF Core 內建的受影響筆數檢查」取代資料庫特定的 `SELECT ... FOR UPDATE`**：
   - `AGENTS.md` 要求 Stop 必須是一個交易：鎖定/讀取 RunningTimer → 讀取目前 UTC 時間 → 建立 TimeEntry → 刪除 RunningTimer → commit，任何一步失敗就 rollback。
   - 一開始的實作直接用 `FromSqlInterpolated("... FOR UPDATE")` 做悲觀鎖，這是 MySQL 語法。但這樣完全無法用任何一種可攜的 EF Core 測試替身驗證（EF Core InMemory provider 不支援 `Database.BeginTransactionAsync`，SQLite 也不支援 `FOR UPDATE` 語法），等於「多裝置同時 Stop 只會建立一筆 TimeEntry」這個最重要的規則完全沒有自動化測試覆蓋。
-  - 改用「交易內先讀（不加鎖 hint）→ 準備好新增 TimeEntry／刪除 RunningTimer → `SaveChangesAsync`」。EF Core 對每一個 UPDATE/DELETE 都會檢查資料庫實際受影響的筆數是否等於預期（1 筆）；如果 RunningTimer 那筆列已經被另一個並發交易刪除並 commit，這裡的 DELETE 會影響 0 筆，EF Core 會丟出 `DbUpdateConcurrencyException`。我們把它視為「已經沒有計時器可停止」，回傳 `TIMER_NOT_RUNNING`（404），並讓 `await using` 的交易物件在沒有呼叫 `CommitAsync()` 的情況下自動 rollback（等同已停止呼叫的 TimeEntry Insert 也一併撤銷，不會產生「贏家已刪除、輸家仍新增了一筆 TimeEntry」的情況）。
+  - 改用「交易內先讀（不加鎖 hint）→ 準備好新增 TimeEntry／刪除 RunningTimer → `SaveChangesAsync`」。EF Core 對每一個 UPDATE/DELETE 都會檢查資料庫實際受影響的筆數是否等於預期（1 筆）；如果 RunningTimer 那筆列已經被另一個並發交易刪除並 commit，這裡的 DELETE 會影響 0 筆，EF Core 會丟出 `DbUpdateConcurrencyException`。我們把它視為「已經沒有計時器可停止」，回傳 `TIMER_NOT_RUNNING`（404），交易沒有呼叫 `CommitAsync()` 就結束會自動 rollback（等同已停止呼叫的 TimeEntry Insert 也一併撤銷，不會產生「贏家已刪除、輸家仍新增了一筆 TimeEntry」的情況）。**（後續 session 更新）** 原本用 `await using var transaction = ...` 讓交易物件自動處理 rollback；Error handling/Logging（第 15 項）加上非預期例外的 log 記錄時，改成 `IDbContextTransaction? transaction = null` + 明確的 `try/catch(Exception exception) when (exception is not DbUpdateConcurrencyException)/finally`，非預期例外會先記一筆 `TimerTransactionFailed` 再手動 `RollbackAsync`，已知的並發衝突路徑（`DbUpdateConcurrencyException`）行為不變，細節見 [`Docs/ErrorHandlingAndLogging.md`](ErrorHandlingAndLogging.md)。
   - 這個機制不依賴任何資料庫專屬語法，只依賴標準 SQL 語意（對已不存在的資料列下 DELETE，回報 0 筆受影響）與 EF Core 所有關聯式 provider 共通的受影響筆數檢查，因此可以用 MySQL（正式環境）與 SQLite（測試環境）驗證同一套邏輯，正確性等價於顯式的悲觀鎖。
 - **`EndTimeUtc > StartTimeUtc` 的防呆**：`TimeEntries` 有對應的 CHECK 約束。如果 Start 與 Stop 發生在同一個時脈刻度（例如自動化測試連續呼叫、系統時鐘解析度不夠），`clock.UtcNow` 可能等於 `StartedAtUtc`，這裡在 Stop 時多做一個 `endTimeUtc <= StartedAtUtc → endTimeUtc = StartedAtUtc.AddTicks(1)` 的防呆，避免違反 DB 約束造成非預期的 500 錯誤。
 - **`IClock` 抽象化系統時間**：`TimerService` 不直接呼叫 `DateTime.UtcNow`，而是透過建構子注入的 `IClock`。這讓測試可以完全控制「現在幾點」，才能寫出「開始 10:00、經過 25 分鐘後停止」這種決定性（deterministic）的測試，也符合 `Infrastructure/Clock/` 目錄本來就規劃要用來抽象時間的定位。
-- **Stop 只接受可選的 `Name`，不接受 Category/Tags**：`Category`/`Tag` 對應的 `CategoryService`/`TagService`（Implementation Order 第 5、6 項）都還是空殼，無法驗證 CategoryId 屬於目前使用者、也無法建立 TimeEntryTag 關聯。為了不引入尚未存在的相依性，Stop 目前只把 Name 寫入 TimeEntry，Category/Tags 留給之後的 Manual TimeEntry CRUD（第 4 項）與 Category/Tag CRUD 完成後，再讓使用者編輯已產生的紀錄。
+- **（寫這份文件當下）Stop 只接受可選的 `Name`，不接受 Category/Tags**：`Category`/`Tag` 對應的 `CategoryService`/`TagService`（Implementation Order 第 5、6 項）當時都還是空殼，無法驗證 CategoryId 屬於目前使用者、也無法建立 TimeEntryTag 關聯。為了不引入尚未存在的相依性，Stop 當時只把 Name 寫入 TimeEntry。**（後續 session 更新）** 第 5、6 項完成後，`StopTimerRequest`／`TimerService.StopAsync` 已經擴充成同時接受 `CategoryId`／`Tags`（沿用 `TimeEntryService.GetOwnedCategoryAsync`/`FindOrCreateTagsAsync` 驗證擁有權與 find-or-create），`timer.js` 的分類下拉選單與標籤 chip 編輯器也已經串接，不再是純前端狀態。下方「尚未涵蓋的部分」的對應段落已過時，實際上這件事已經做完。
 
 ## 整體流程
 
@@ -119,6 +119,6 @@
 
 ## 尚未涵蓋的部分
 
-- **Category/Tags 尚未接到 Stop**：如上所述，等 Implementation Order 第 5、6 項（CategoryService/TagService）完成後，需要擴充 `StopTimerRequest`（或改為在 Stop 之後另外呼叫 TimeEntry 編輯 API）才能把分類與標籤一併寫入。
-- **Dashboard 統計卡片/圖表仍是 mock data**：計時器本身已經是真實資料，但 Dashboard 其餘部分（總時數、分類圓餅圖、標籤長條圖、每日趨勢、最近活動）要等 `TimeAggregationService`/`DashboardService`（第 9、10 項）完成才會顯示真實資料。
+- ~~Category/Tags 尚未接到 Stop~~ **（後續 session 更新，已完成）**：第 5、6 項完成後，`StopTimerRequest`/`TimerService.StopAsync` 已經接受 `CategoryId`/`Tags` 並串接 `timer.js`，見上方「設計思路」的更新註記。
+- ~~Dashboard 統計卡片/圖表仍是 mock data~~ **（後續 session 更新，已完成）**：`TimeAggregationService`/`DashboardService`（第 9、10 項）完成後，Dashboard 全部改用真實資料，mock data 已移除，見 [`Docs/Dashboard.md`](Dashboard.md)。
 - **並發 Stop 測試使用 SQLite 而非 MySQL**：SQLite 是資料庫層級鎖（whole-database lock），MySQL InnoDB 是列鎖（row lock），兩者鎖的粒度不同；但本文件驗證的性質是「DELETE 命中 0 筆時 EF Core 會丟出並發例外」這個與鎖粒度無關的標準行為，因此測試結論仍然適用於 MySQL。若要百分之百貼近正式環境，之後可以另外針對真正的 MySQL 執行個體補上一次性的手動或 CI 整合測試。

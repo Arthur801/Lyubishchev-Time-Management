@@ -75,10 +75,9 @@
 
 - 新增內部測試替身 `NoOpAuthEventLogger`（實作 `IAuthEventLogger`，五個方法皆為空實作），讓既有的 12 個測試不需要驗證記錄行為，只需要滿足建構子相依性即可編譯執行。
 - 既有測試呼叫 `RegisterAsync`/`LoginAsync` 的地方，統一補上 `ipAddress: null` 引數（測試情境沒有真實的 HTTP 連線，`null` 等同「非 HTTP 呼叫方」）。
-- 未新增額外的 rate limiting 測試：`AddRateLimiter`/`UseRateLimiter` 屬於 ASP.NET Core middleware pipeline 的行為，需要 `WebApplicationFactory` 等級的整合測試才有意義，目前的 `AuthServiceTests` 是直接建構 `AuthService` 的單元/整合測試，沒有經過 middleware，不適合驗證這塊。如需驗證，應在之後補上以 `WebApplicationFactory<Program>` 為基礎的測試（尚未涵蓋，見下方）。
+- 當時未新增額外的 rate limiting 測試：`AddRateLimiter`/`UseRateLimiter` 屬於 ASP.NET Core middleware pipeline 的行為，需要 `WebApplicationFactory` 等級的整合測試才有意義，`AuthServiceTests` 是直接建構 `AuthService` 的單元/整合測試，沒有經過 middleware，不適合驗證這塊。**（後續 session 更新，已完成）** Error handling/Logging（第 15 項）新增了 `Tests/WebFlow.Tests`（第一個 `WebApplicationFactory<Program>` 測試專案），其中 `Rate_limit_rejection_still_returns_429` 連打 11 次壞密碼登入，驗證第 11 次確實回 429 `TOO_MANY_REQUESTS`，細節見 [`Docs/ErrorHandlingAndLogging.md`](ErrorHandlingAndLogging.md)。
 
 ## 尚未涵蓋的部分
 
 - **Rate limiting 沒有針對「同一 Email、不同 IP」的情境做限制**（例如透過大量 Proxy 輪流嘗試同一帳號的密碼），僅依 IP 做限制。V1 範圍內視為可接受的取捨。
-- **沒有透過 `WebApplicationFactory` 驗證 429 行為的整合測試**，目前僅以程式碼審查與手動觀察 middleware 設定確認正確性。
-- **`Infrastructure/Logging` 目前只有 Auth 相關事件**。`AGENTS.md` 要求的其餘記錄項目（DB 錯誤、timer transaction failure、CSV export failure、startup/shutdown）待對應功能實作時再一併補上，屆時可以參考 `IAuthEventLogger` 的模式（介面 + 結構化欄位 + 明確排除敏感欄位）建立對應的 logger。
+- ~~`Infrastructure/Logging` 目前只有 Auth 相關事件~~ **（後續 session 更新，已完成）**：第 15 項新增 `IOperationalEventLogger`（timer transaction failure、CSV export failure），沿用這裡 `IAuthEventLogger` 的模式（介面 + 結構化欄位 + 明確排除敏感欄位）；未預期例外的通用 Error log（含 DB 錯誤）改由新增的 `GlobalExceptionHandler` 統一記錄。startup/shutdown 沿用 ASP.NET Core 內建的 `Microsoft.Hosting.Lifetime` 記錄，沒有另外疊加自訂事件。細節見 [`Docs/ErrorHandlingAndLogging.md`](ErrorHandlingAndLogging.md)。

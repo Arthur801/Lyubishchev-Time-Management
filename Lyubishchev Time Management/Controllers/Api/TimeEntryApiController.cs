@@ -18,6 +18,11 @@ public sealed class TimeEntryApiController(TimeEntryService timeEntryService, Cs
         [FromQuery] string? search,
         CancellationToken cancellationToken = default)
     {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
         if (startUtc is not null && endUtc is not null && endUtc <= startUtc)
         {
             return Problem(detail: "結束時間必須晚於開始時間。", statusCode: StatusCodes.Status400BadRequest, title: "INVALID_TIME_RANGE");
@@ -41,6 +46,11 @@ public sealed class TimeEntryApiController(TimeEntryService timeEntryService, Cs
         [FromQuery] int pageSize = 50,
         CancellationToken cancellationToken = default)
     {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
         if (startUtc is not null && endUtc is not null && endUtc <= startUtc)
         {
             return Problem(detail: "結束時間必須晚於開始時間。", statusCode: StatusCodes.Status400BadRequest, title: "INVALID_TIME_RANGE");

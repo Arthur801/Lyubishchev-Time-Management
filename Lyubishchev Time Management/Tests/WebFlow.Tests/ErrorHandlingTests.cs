@@ -240,6 +240,30 @@ public sealed class ErrorHandlingTests(CustomWebApplicationFactory factory) : IC
     }
 
     [Fact]
+    public async Task Csv_export_with_a_malformed_date_query_string_returns_400_not_a_silent_unbounded_export()
+    {
+        // A code-review pass found that TimeEntryApiController.Export/List never checked
+        // ModelState, so a DateTime query parameter that fails to bind (e.g. "not-a-date") left
+        // startUtc/endUtc as null and the request silently proceeded as an unbounded export/list,
+        // instead of the 400 the design doc promises for invalid model binding.
+        var client = await CreateAuthenticatedClientAsync(factory);
+
+        var response = await client.GetAsync("/api/time-entries/export?startUtc=not-a-date");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task List_with_a_malformed_date_query_string_returns_400_not_a_silent_unbounded_list()
+    {
+        var client = await CreateAuthenticatedClientAsync(factory);
+
+        var response = await client.GetAsync("/api/time-entries?startUtc=not-a-date");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Csv_export_without_authentication_still_returns_401()
     {
         var client = factory.CreateClient();

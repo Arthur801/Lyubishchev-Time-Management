@@ -19,7 +19,7 @@
 
 - **Category/Tag 篩選、搜尋、分頁**：History 頁面原本的篩選列（日期範圍/分類/搜尋）UI 保留，只把背後邏輯從「在瀏覽器記憶體裡過濾 8 筆假資料」改成呼叫 `GET /api/time-entries` 並帶上查詢參數；新增 `#pagination`（上一頁/下一頁 + 頁碼），預設每頁 50 筆（`AGENTS.md` 建議值）。
 - **新增/編輯表單是全新功能**：原本的 mock 完全沒有新增/編輯 UI，只有「刪除」。這次在 `Views/TimeEntry/Index.cshtml` 新增一個 `<dialog id="entry-modal">`（原生 HTML `<dialog>`，`showModal()`/`close()`），欄位為活動名稱、開始/結束時間（`datetime-local`）、分類下拉（伺服器端渲染自 `HistoryViewModel.Categories`）、標籤編輯器（沿用 `wwwroot/js/timer.js` 已經有的標籤 chip 編輯互動：輸入 + Enter/按鈕加入、點 × 移除）。
-- **日期範圍如何轉成 UTC 查詢參數**：目前完全用瀏覽器本地時區（`new Date()` + `.toISOString()`）計算「今天/本週/本月」的本地日界線，再轉成 UTC 送給後端；「全部」則兩個查詢參數都不帶，後端就不加時間篩選。這是刻意的簡化：`UserSettingsService`/時區設定頁（Implementation Order 第 12 項）還沒做，`User.TimeZoneId` 目前對所有使用者都是寫死的預設值，沒有任何 UI 可以修改它，此時投入「依使用者設定的時區換算」的邏輯是對一個還沒人用得到的設定做超前工程。這個簡化同時套用在「讀」（篩選範圍）與「寫」（新增/編輯表單的開始/結束時間）兩側，所以不會造成資料錯亂——唯一的風險是瀏覽器所在時區與帳號未來設定的時區不同時，「今天/本週/本月」篩選的日界線可能有時差，等第 12 項做完就會自動修正。
+- **日期範圍如何轉成 UTC 查詢參數（寫這份文件當下）**：當時完全用瀏覽器本地時區（`new Date()` + `.toISOString()`）計算「今天/本週/本月」的本地日界線，再轉成 UTC 送給後端；「全部」則兩個查詢參數都不帶，後端就不加時間篩選。這是刻意的簡化：`UserSettingsService`/時區設定頁（Implementation Order 第 12 項）當時還沒做，`User.TimeZoneId` 對所有使用者都是寫死的預設值，沒有任何 UI 可以修改它。**（後續 session 更新，已完成）** 第 12 項完成、且使用者實測回報「用 UTC+8 時間建立卻顯示成 UTC」的 bug 之後，`time-entry.js` 已經全面改用帳號時區：啟動時呼叫 `GET /api/settings/timezone` 取得 `timeZoneId`，快捷日期範圍、清單分組/顯示時間、新增/編輯表單的時間欄位都透過 `wwwroot/js/timezone.mjs` 換算，不再依賴瀏覽器本地時區。細節見 [`Docs/HANDOFF.md`](HANDOFF.md) 「這個 session 中發現並修好的重要地雷」一節與 [`Docs/CalendarView.md`](CalendarView.md)（`timezone.mjs` 後來也被 Calendar View 共用）。
 
 ## 開發過程中透過真實伺服器測試抓到的兩個問題
 
@@ -117,8 +117,8 @@
 
 ## 尚未涵蓋的部分
 
-- **Category/Tag 的完整管理頁面**（建立、改名、刪除分類/標籤）仍是 Implementation Order 第 5、6 項，尚未開始；這次只做了「讀取現有分類清單」與「標籤 inline 建立」。
-- **`UpdateTimeEntryRequest` 對 `Name`/`CategoryId` 是整值取代而非嚴格局部更新**：已在「設計思路」段落說明原因與風險範圍，之後如果有除了目前這個編輯表單以外的呼叫方，需要重新評估是否要補上正式的 tri-state 設計。
-- **Dashboard 統計卡片/圖表仍是 mock data**：這次串接的是 History 列表，不是 Dashboard 的彙總統計；那部分要等 `TimeAggregationService`/`DashboardService`（第 9、10 項）完成才會顯示真實資料。
-- **CSV 匯出**（`GET /api/time-entries/export`，第 13 項）雖然跟這次的路由前綴相同，但不在這次範圍內，尚未實作。
-- **時區換算**：如前述，目前用瀏覽器本地時區簡化處理，待 Settings/timezone（第 12 項）完成後需要一併檢視。
+- ~~Category/Tag 的完整管理頁面（建立、改名、刪除分類/標籤）仍是 Implementation Order 第 5、6 項，尚未開始~~ **（後續 session 更新，已完成）**：見 `Docs/HANDOFF.md`「Category/Tag 管理」一節。
+- **`UpdateTimeEntryRequest` 對 `Name`/`CategoryId` 是整值取代而非嚴格局部更新**：已在「設計思路」段落說明原因與風險範圍，之後如果有除了目前這個編輯表單以外的呼叫方，需要重新評估是否要補上正式的 tri-state 設計。（此項至今仍成立，未變動）
+- ~~Dashboard 統計卡片/圖表仍是 mock data~~ **（後續 session 更新，已完成）**：見 [`Docs/Dashboard.md`](Dashboard.md)。
+- ~~CSV 匯出（第 13 項）尚未實作~~ **（後續 session 更新，已完成）**：見 [`Docs/CsvExport.md`](CsvExport.md)。
+- ~~時區換算：目前用瀏覽器本地時區簡化處理~~ **（後續 session 更新，已完成）**：見上方「前端範圍與時區的取捨」的更新註記。

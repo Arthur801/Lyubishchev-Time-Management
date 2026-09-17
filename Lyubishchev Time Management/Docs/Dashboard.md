@@ -49,7 +49,7 @@
 
 ### `wwwroot/js/dashboard.js`
 
-改為對 `/api/dashboard` 發真實 fetch；range 按鈕與自訂範圍套用共用 `runRequest`，用遞增 `requestId` 蓋掉較舊的回應。渲染 Category legend／Recent list 的名稱一律用 `textContent`/DOM node，不把使用者輸入字串接進 `innerHTML`（比照 `category.js`/`tag.js` 既有慣例）。最近活動的時間改用 `Intl.DateTimeFormat` 搭配回應裡的 `timeZoneId` 格式化，不用瀏覽器本地時區——這是目前 Dashboard 程式碼裡唯一已經改用帳號時區顯示時間的地方，Timer 卡片與 History List 的日期範圍計算依然是舊的瀏覽器本地時區簡化，未變動（詳見「尚未涵蓋的部分」）。Timer 卡片完全未觸碰，仍由 `timer.js` 獨立呼叫 `/api/timer`。
+改為對 `/api/dashboard` 發真實 fetch；range 按鈕與自訂範圍套用共用 `runRequest`，用遞增 `requestId` 蓋掉較舊的回應。渲染 Category legend／Recent list 的名稱一律用 `textContent`/DOM node，不把使用者輸入字串接進 `innerHTML`（比照 `category.js`/`tag.js` 既有慣例）。最近活動的時間改用 `Intl.DateTimeFormat` 搭配回應裡的 `timeZoneId` 格式化，不用瀏覽器本地時區——這是當時 Dashboard 程式碼裡第一個改用帳號時區顯示時間的地方（History List 後續 session 也已經改用帳號時區，見「尚未涵蓋的部分」的更新註記）。Timer 卡片完全未觸碰，仍由 `timer.js` 獨立呼叫 `/api/timer`。
 
 ### `Views/Dashboard/Index.cshtml`
 
@@ -65,9 +65,9 @@
 
 ## 尚未涵蓋的部分
 
-- **Timer 卡片與 History List 仍是瀏覽器本地時區的簡化做法**：只有這次新寫的「最近活動」時間顯示改用帳號時區；`timer.js` 的即時計時顯示與 `time-entry.js`（History List）目前用的日期範圍篩選都還沒有改用 `User.TimeZoneId`／`TimeAggregationService`，這兩處的改動已超出 Dashboard 設計文件範圍。
-- **Report（第 11 項）仍未開始**，其 Category 圓餅圖／Tag 長條圖會需要重用同一個 `TimeAggregationService`，屆時應該延續 `DashboardService` 的模式（只組裝，不重寫聚合邏輯）。
-- **側欄「報表」「設定」連結仍是 `href="#"` placeholder**，這次沒有動——「設定」的實際路由已經存在（`/Settings`，見 [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md)），但接線其他頁面的側欄連結不在任何一份既有設計文件的檔案清單內，留給之後專門處理導覽列的工作。
+- ~~Timer 卡片與 History List 仍是瀏覽器本地時區的簡化做法~~ **（後續 session 更新）**：History List（`time-entry.js`）已經改用帳號時區，見 [`Docs/HANDOFF.md`](HANDOFF.md)「這個 session 中發現並修好的重要地雷」一節。Timer 卡片經查證後**不需要改**——它的即時顯示只算經過秒數（`Date.now() - startedAtUtc`），從來不涉及日曆日期/時區計算，過去這裡把它跟 History List 的 bug 混為一談是誤判，細節同見上述 HANDOFF 章節。
+- ~~Report（第 11 項）仍未開始~~ **（後續 session 更新，已完成）**：見 [`Docs/Report.md`](Report.md)，延續了這裡預期的「只組裝、不重寫聚合邏輯」模式。
+- ~~側欄「報表」「設定」連結仍是 `href="#"` placeholder~~ **（後續 session 更新，已完成）**：全站側欄與行動導覽的「報表」「設定」連結都已接上 `/Report`/`/Settings`，見 [`Docs/Report.md`](Report.md) 與 [`Docs/Rwd.md`](Rwd.md)。
 - **前端沒有自動化的互動測試**（例如實際點擊 range 按鈕、確認 fetch 呼叫與畫面更新），只有 `dashboard-frontend.test.mjs` 對純函式與靜態標記的驗證；瀏覽器互動驗證是靠本機手動 curl 對 `/api/dashboard` 的驗收（見下方）＋人工檢查 HTML 結構，這個 session 的環境沒有可用的瀏覽器自動化工具，實際的桌面／320px 版面與互動流程建議接手後在真的瀏覽器裡再看一次。
 
 ## 手動驗證
