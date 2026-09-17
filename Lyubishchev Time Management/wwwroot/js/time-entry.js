@@ -273,6 +273,19 @@ if (page) {
     }
   });
 
+  document.querySelectorAll('[data-history-view]').forEach((button) =>
+    button.addEventListener('click', () => {
+      const view = button.dataset.historyView;
+      document.querySelectorAll('[data-history-view]').forEach((item) => {
+        const selected = item === button;
+        item.classList.toggle('range-button--active', selected);
+        item.setAttribute('aria-pressed', String(selected));
+      });
+      $('#list-view').hidden = view !== 'list';
+      $('#calendar-section').hidden = view !== 'calendar';
+    }),
+  );
+
   async function init() {
     try {
       const settings = await callApi('/api/settings/timezone');

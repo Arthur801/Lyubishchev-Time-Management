@@ -52,9 +52,11 @@
 - 詳細實作說明見 [`Docs/TimeEntryCrud.md`](TimeEntryCrud.md)
 
 ## 8. Calendar View
-- [ ] 尚未開始（Controller/View/JS 皆無）
-- [ ] `wwwroot/js/calendar.js` 待確認/建立
-- [ ] 需遵守「只查詢可視範圍」的 overlap 查詢規則
+- [x] `/TimeEntry` 頁面新增 List／Calendar tab 切換（`Views/TimeEntry/Index.cshtml`），Calendar 唯讀、桌面週時間軸／手機單日時間軸
+- [x] `wwwroot/js/calendar.js` + `wwwroot/js/calendar-state.mjs`（純函式：跨午夜切段、重疊分欄）+ `wwwroot/css/calendar.css`
+- [x] 只查詢可視範圍：重用既有 `GET /api/time-entries` overlap 查詢（`TimeEntryService.ListAsync` 本來就有 overlap 條件、`UserId` 過濾、`pageSize` clamp 在 200），沒有新增後端程式碼
+- [x] 顯示時間換算帳號時區：`wwwroot/js/timezone.mjs` 新增 `zonedDayUtcBounds`/`addZonedDays`/`weekdayOfDate`/`getZonedDateParts`
+- 詳細實作說明見 [`Docs/CalendarView.md`](CalendarView.md)
 
 ## 9. TimeAggregationService
 - [x] `Services/TimeAggregationService.cs`（`GetRangeForPreset`/`AggregateAsync`，集中處理時區轉換、UTC 半開區間 interval intersection、跨午夜/DST 逐日切分、Category（含未分類）/Tag 聚合）已被 Dashboard（第 10 項）串接使用，尚待 Report（第 11 項）串接
@@ -109,6 +111,7 @@
 - [x] Integration Tests：Category/Tag 管理（唯一鍵衝突、跨使用者拒絕、併發重複建立、刪除語意）已完成，使用共用的 `TestDatabase` SQLite in-memory fixture
 - [x] Integration/Unit Tests：Timezone settings、TimeAggregationService（白名單、跨使用者隔離、跨午夜切分、DST 春季/秋季整天時長、未分類桶、Category/Tag 聚合）已完成，細節見 [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md)
 - [x] Integration Tests：Dashboard（Today/Week/Month/Custom 比較期、不同長度月份、無效 preset/date range、preset 與 custom 同給、空資料、最近五筆排序、跨使用者隔離、Category/Tag totals 透傳）已完成，`Tests/TimeEntryFlow.Tests` 目前共 83 個測試，細節見 [`Docs/Dashboard.md`](Dashboard.md)。前端純函式與靜態標記另有 `Tests/Unit/dashboard-frontend.test.mjs`（Node `node:test`，4 個測試）
+- [x] Unit Tests：Calendar View 的跨午夜切段與重疊分欄純函式（`Tests/Unit/calendar-state.test.mjs`，5 個測試）、`timezone.mjs` 新增的日期運算函式（`Tests/Unit/timezone.test.mjs`，新增 4 個測試），細節見 [`Docs/CalendarView.md`](CalendarView.md)。`Tests/Unit/` 目前共 23 個 Node 測試（`node --test Tests/Unit/*.test.mjs`）
 
 ---
 
@@ -125,8 +128,10 @@
 - Dashboard 真實資料串接（`DashboardService` 組裝本期/相鄰比較期/最近五筆活動，`GET /api/dashboard`，`dashboard.js` 移除全部 mock data，最近活動時間改用帳號時區顯示），詳見 [`Docs/Dashboard.md`](Dashboard.md)
 - Secrets 管理：連線字串、JWT 簽章金鑰皆使用 `dotnet user-secrets`，未提交至 Git
 - **修正一個影響全站的 DateTime 序列化 bug**：`AppDbContext` 新增 `ConfigureConventions` + `Data/UtcDateTimeConverter.cs`，讓所有從 MySQL 讀回的 `DateTime` 都強制標記 `DateTimeKind.Utc`（MySQL `DATETIME` 欄位不記錄時區，EF Core 讀回時預設是 `Unspecified`，導致 JSON 序列化漏掉 `Z` 尾碼，前端任何 `new Date(...)` 都會誤判成瀏覽器本地時間）；同時把 History List（`time-entry.js`）改成用帳號時區（見上方第 7 項），細節見 `Docs/HANDOFF.md`
+- Calendar View（第 8 項）：`/TimeEntry` 新增 List／Calendar tab 切換，桌面週時間軸／手機單日時間軸，唯讀、重用既有 `GET /api/time-entries` overlap 查詢，沒有新增後端程式碼，詳見 [`Docs/CalendarView.md`](CalendarView.md)
 
 ## 下一步建議優先順序
 1. Report（第 11 項）串接 `TimeAggregationService`，延續 `DashboardService` 的「只組裝、不重寫聚合邏輯」模式（Category 圓餅圖、Tag 長條圖）
-2. Timer 卡片（`timer.js`）即時顯示目前仍用瀏覽器本地時區計算日期範圍，尚未改用使用者在 `/Settings` 設定的時區（History List 已於本次修正改用帳號時區，可參考同一個模式：`wwwroot/js/timezone.mjs`）
-3. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）
+2. Timer 卡片（`timer.js`）即時顯示目前仍用瀏覽器本地時區計算日期範圍，尚未改用使用者在 `/Settings` 設定的時區（History List 與 Calendar View 都已改用帳號時區，可參考同一個模式：`wwwroot/js/timezone.mjs`）
+3. Calendar View 尚未在真的瀏覽器裡驗證過視覺效果（桌面週欄、320px 單日、focus 順序），這個 session 沒有可用的瀏覽器自動化工具，建議接手後優先補上
+4. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）

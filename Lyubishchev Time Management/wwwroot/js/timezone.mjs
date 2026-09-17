@@ -68,6 +68,30 @@ export function zonedDateKey(isoString, timeZone) {
   return `${year}-${pad(month)}-${pad(day)}`;
 }
 
+// Exposes the Intl-backed zoned calendar date (and time-of-day) for callers, such as the Calendar
+// view, that need to anchor navigation on "today in the account timezone" rather than the
+// instant->UTC-string helpers above.
+export function getZonedDateParts(date, timeZone) {
+  return getZonedParts(date, timeZone);
+}
+
+export function addZonedDays(year, month, day, delta) {
+  return addCalendarDays(year, month, day, delta);
+}
+
+export function weekdayOfDate(year, month, day) {
+  return weekdayOf(year, month, day);
+}
+
+// The [startUtc, endUtc) instant bounds of one local calendar day in `timeZone`, as UTC ISO
+// strings — the Calendar view's per-day query window and entry-splitting boundary.
+export function zonedDayUtcBounds(year, month, day, timeZone) {
+  const startUtc = zonedTimeToUtcIso(year, month, day, 0, 0, timeZone);
+  const next = addCalendarDays(year, month, day, 1);
+  const endUtc = zonedTimeToUtcIso(next.year, next.month, next.day, 0, 0, timeZone);
+  return { startUtc, endUtc };
+}
+
 // Sunday-start day/week/month boundaries computed in `timeZone`, returned as UTC ISO instants
 // ([startUtc, endUtc)). `referenceDate` defaults to now and exists so tests can pin "today".
 export function getZonedRangeForPreset(preset, timeZone, referenceDate = new Date()) {

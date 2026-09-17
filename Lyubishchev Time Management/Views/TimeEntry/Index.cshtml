@@ -6,6 +6,7 @@
 @section Styles {
     <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/history.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/calendar.css" asp-append-version="true" />
 }
 
 <div class="dashboard-page" id="history-page">
@@ -14,7 +15,7 @@
         <nav class="app-nav">
             <a class="app-nav__link" asp-controller="Dashboard" asp-action="Index"><span aria-hidden="true">◈</span>儀表板</a>
             <a class="app-nav__link app-nav__link--active" asp-controller="TimeEntry" asp-action="Index" aria-current="page"><span aria-hidden="true">◷</span>歷史紀錄</a>
-            <a class="app-nav__link" href="#"><span aria-hidden="true">▥</span>報表</a>
+            <a class="app-nav__link" asp-controller="Report" asp-action="Index"><span aria-hidden="true">▥</span>報表</a>
             <a class="app-nav__link" asp-controller="Category" asp-action="Index"><span aria-hidden="true">◌</span>分類</a>
             <a class="app-nav__link" asp-controller="Tag" asp-action="Index"><span aria-hidden="true">#</span>標籤</a>
             <a class="app-nav__link" asp-controller="Settings" asp-action="Index"><span aria-hidden="true">⚙</span>設定</a>
@@ -33,42 +34,61 @@
             <button class="outline-button" type="button" id="add-entry">+ 新增紀錄</button>
         </header>
 
-        <section class="filter-bar" aria-label="篩選紀錄">
-            <div class="range-presets" role="group" aria-label="快捷日期範圍">
-                <button type="button" class="range-button range-button--active" data-range="today" aria-pressed="true">今天</button>
-                <button type="button" class="range-button" data-range="week" aria-pressed="false">本週</button>
-                <button type="button" class="range-button" data-range="month" aria-pressed="false">本月</button>
-                <button type="button" class="range-button" data-range="all" aria-pressed="false">全部</button>
+        <div class="history-view-toggle" role="group" aria-label="檢視模式">
+            <button type="button" class="range-button range-button--active" data-history-view="list" aria-pressed="true">列表</button>
+            <button type="button" class="range-button" data-history-view="calendar" aria-pressed="false">行事曆</button>
+        </div>
+
+        <div id="list-view">
+            <section class="filter-bar" aria-label="篩選紀錄">
+                <div class="range-presets" role="group" aria-label="快捷日期範圍">
+                    <button type="button" class="range-button range-button--active" data-range="today" aria-pressed="true">今天</button>
+                    <button type="button" class="range-button" data-range="week" aria-pressed="false">本週</button>
+                    <button type="button" class="range-button" data-range="month" aria-pressed="false">本月</button>
+                    <button type="button" class="range-button" data-range="all" aria-pressed="false">全部</button>
+                </div>
+                <label class="filter-field">分類
+                    <select id="filter-category">
+                        <option value="">全部分類</option>
+                        @foreach (var category in Model.Categories)
+                        {
+                            <option value="@category.Id">@category.Name</option>
+                        }
+                    </select>
+                </label>
+                <label class="filter-field filter-field--search">搜尋
+                    <input id="filter-search" type="search" placeholder="依名稱或標籤搜尋" />
+                </label>
+            </section>
+
+            <section class="entry-groups" id="entry-groups" aria-live="polite"></section>
+
+            <p class="empty-state" id="empty-state" hidden>這個範圍內還沒有任何紀錄。</p>
+
+            <nav class="pagination" id="pagination" aria-label="分頁" hidden>
+                <button class="outline-button" type="button" id="pagination-prev">上一頁</button>
+                <span id="pagination-label"></span>
+                <button class="outline-button" type="button" id="pagination-next">下一頁</button>
+            </nav>
+        </div>
+
+        <section class="calendar-section" id="calendar-section" aria-label="行事曆檢視" hidden>
+            <div class="calendar-toolbar">
+                <div class="calendar-nav" role="group" aria-label="行事曆導覽">
+                    <button type="button" class="outline-button" id="calendar-prev" aria-label="上一段">‹</button>
+                    <button type="button" class="outline-button" id="calendar-today">今天</button>
+                    <button type="button" class="outline-button" id="calendar-next" aria-label="下一段">›</button>
+                </div>
+                <p class="calendar-range-label" id="calendar-range-label"></p>
             </div>
-            <label class="filter-field">分類
-                <select id="filter-category">
-                    <option value="">全部分類</option>
-                    @foreach (var category in Model.Categories)
-                    {
-                        <option value="@category.Id">@category.Name</option>
-                    }
-                </select>
-            </label>
-            <label class="filter-field filter-field--search">搜尋
-                <input id="filter-search" type="search" placeholder="依名稱或標籤搜尋" />
-            </label>
+            <div class="calendar-grid" id="calendar-grid" aria-live="polite"></div>
         </section>
-
-        <section class="entry-groups" id="entry-groups" aria-live="polite"></section>
-
-        <p class="empty-state" id="empty-state" hidden>這個範圍內還沒有任何紀錄。</p>
-
-        <nav class="pagination" id="pagination" aria-label="分頁" hidden>
-            <button class="outline-button" type="button" id="pagination-prev">上一頁</button>
-            <span id="pagination-label"></span>
-            <button class="outline-button" type="button" id="pagination-next">下一頁</button>
-        </nav>
     </main>
 
     <nav class="mobile-nav" aria-label="行動裝置主要導覽">
         <a class="mobile-nav__link" asp-controller="Dashboard" asp-action="Index">◈<span>總覽</span></a>
         <a class="mobile-nav__link mobile-nav__link--active" asp-controller="TimeEntry" asp-action="Index" aria-current="page">◷<span>紀錄</span></a>
-        <a class="mobile-nav__link" href="#">▥<span>報表</span></a>
+        <a class="mobile-nav__link" asp-controller="Report" asp-action="Index">▥<span>報表</span></a>
         <a class="mobile-nav__link" asp-controller="Settings" asp-action="Index">⚙<span>設定</span></a>
     </nav>
 
@@ -114,4 +134,5 @@
 
 @section Scripts {
     <script type="module" src="~/js/time-entry.js" asp-append-version="true"></script>
+    <script type="module" src="~/js/calendar.js" asp-append-version="true"></script>
 }
