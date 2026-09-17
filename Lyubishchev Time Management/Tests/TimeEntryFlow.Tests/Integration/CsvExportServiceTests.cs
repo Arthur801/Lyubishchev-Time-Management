@@ -1,14 +1,18 @@
 using System.Text;
 using Lyubishchev_Time_Management.Data;
+using Lyubishchev_Time_Management.Infrastructure.Logging;
 using Lyubishchev_Time_Management.Infrastructure.Time;
 using Lyubishchev_Time_Management.Models.Requests;
 using Lyubishchev_Time_Management.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace TimeEntryFlow.Tests.Integration;
 
 public sealed class CsvExportServiceTests
 {
+    private static readonly IOperationalEventLogger NoopOperationalEventLogger = new OperationalEventLogger(NullLogger<OperationalEventLogger>.Instance);
+
     private static DateTime Utc(int year, int month, int day, int hour, int minute)
         => new(year, month, day, hour, minute, 0, DateTimeKind.Utc);
 
@@ -16,7 +20,7 @@ public sealed class CsvExportServiceTests
     {
         var clock = new TestClock(Utc(2026, 9, 17, 0, 0));
         var catalog = new TimeZoneCatalog();
-        return new CsvExportService(dbContext, new UserSettingsService(dbContext, clock, catalog), catalog);
+        return new CsvExportService(dbContext, new UserSettingsService(dbContext, clock, catalog), catalog, NoopOperationalEventLogger);
     }
 
     // Decodes the exported bytes, verifies (and strips) the UTF-8 BOM, and splits into records —

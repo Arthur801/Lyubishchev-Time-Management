@@ -24,7 +24,11 @@ namespace Lyubishchev_Time_Management.Controllers
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+            // GlobalExceptionHandler stashes the trace ID it already logged under before
+            // re-executing this action; fall back to Activity/TraceIdentifier only for a direct
+            // hit on this route (e.g. manual navigation) where no exception actually occurred.
+            var requestId = HttpContext.Items["TraceId"] as string ?? Activity.Current?.Id ?? HttpContext.TraceIdentifier;
+            return View(new ErrorViewModel { RequestId = requestId });
         }
     }
 }

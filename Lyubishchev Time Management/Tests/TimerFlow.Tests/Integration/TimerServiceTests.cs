@@ -1,8 +1,10 @@
 using Lyubishchev_Time_Management.Data;
+using Lyubishchev_Time_Management.Infrastructure.Logging;
 using Lyubishchev_Time_Management.Models.Entities;
 using Lyubishchev_Time_Management.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace TimerFlow.Tests.Integration;
@@ -44,7 +46,10 @@ public sealed class TimerServiceTests
         return (keepAlive, options, userId);
     }
 
-    private static TimerService CreateService(AppDbContext dbContext, TestClock clock) => new(dbContext, clock, new TimeEntryService(dbContext, clock));
+    private static readonly IOperationalEventLogger NoopOperationalEventLogger = new OperationalEventLogger(NullLogger<OperationalEventLogger>.Instance);
+
+    private static TimerService CreateService(AppDbContext dbContext, TestClock clock) =>
+        new(dbContext, clock, new TimeEntryService(dbContext, clock), NoopOperationalEventLogger);
 
     [Fact]
     public async Task StartAsync_starts_timer_when_none_is_running()

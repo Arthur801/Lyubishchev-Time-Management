@@ -1,6 +1,7 @@
 using System.Globalization;
 using Lyubishchev_Time_Management.Data;
 using Lyubishchev_Time_Management.Infrastructure.Csv;
+using Lyubishchev_Time_Management.Infrastructure.Logging;
 using Lyubishchev_Time_Management.Infrastructure.Time;
 using Lyubishchev_Time_Management.Models.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -21,7 +22,8 @@ public sealed record CsvExportDocument(byte[] Content, string FileName);
 public sealed class CsvExportService(
     AppDbContext dbContext,
     UserSettingsService userSettingsService,
-    TimeZoneCatalog timeZoneCatalog)
+    TimeZoneCatalog timeZoneCatalog,
+    IOperationalEventLogger operationalEventLogger)
 {
     // The design doc specifies this literal English fallback for the CSV's Category column
     // (distinct from the app UI's own "未分類" label used elsewhere, e.g. TimeAggregationService).
@@ -31,50 +33,67 @@ public sealed class CsvExportService(
 
     public async Task<CsvExportDocument> ExportAsync(ulong userId, CsvExportRequest request, CancellationToken cancellationToken)
     {
-        var settings = await userSettingsService.GetAsync(userId, cancellationToken);
-        var timeZone = timeZoneCatalog.ResolveOrUtc(settings.TimeZoneId);
-
-        var query = dbContext.TimeEntries.AsNoTracking().Where(e => e.UserId == userId);
-
-        if (request.StartUtc is not null)
+        try
         {
-            query = query.Where(e => e.EndTimeUtc > request.StartUtc.Value);
-        }
+            var settings = await userSettingsService.GetAsync(userId, cancellationToken);
+            var timeZone = timeZoneCatalog.ResolveOrUtc(settings.TimeZoneId);
 
-        if (request.EndUtc is not null)
+            var query = dbContext.TimeEntries.AsNoTracking().Where(e => e.UserId == userId);
+
+            if (request.StartUtc is not null)
+            {
+                query = query.Where(e => e.EndTimeUtc > request.StartUtc.Value);
+            }
+
+            if (request.EndUtc is not null)
+            {
+                query = query.Where(e => e.StartTimeUtc < request.EndUtc.Value);
+            }
+
+            if (request.CategoryId is not null)
+            {
+                query = query.Where(e => e.CategoryId == request.CategoryId.Value);
+            }
+
+            var term = request.Search?.Trim();
+            if (!string.IsNullOrEmpty(term))
+            {
+                query = query.Where(e =>
+                    EF.Functions.Like(e.Name ?? "", $"%{term}%") ||
+                    e.TimeEntryTags.Any(link => EF.Functions.Like(link.Tag.Name, $"%{term}%")));
+            }
+
+            var entries = await query
+                .OrderByDescending(e => e.StartTimeUtc)
+                // Same SQLite-provider workaround as TimeEntryService.ListAsync/DashboardService: it
+                // refuses to translate ORDER BY on a raw ulong column. No Skip/Take — export is
+                // intentionally unpaginated.
+                .ThenByDescending(e => (long)e.Id)
+                .Include(e => e.Category)
+                .Include(e => e.TimeEntryTags)
+                .ThenInclude(link => link.Tag)
+                .ToListAsync(cancellationToken);
+
+            var rows = entries.Select(entry => BuildRow(entry, timeZone, settings.TimeZoneId));
+            var content = CsvWriter.Write(Headers, rows);
+            var fileName = BuildFileName(request.StartUtc, request.EndUtc, timeZone);
+
+            return new CsvExportDocument(content, fileName);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            query = query.Where(e => e.StartTimeUtc < request.EndUtc.Value);
+            // Cancellation (client disconnect, navigated away) is not an application error and
+            // must not be logged as one; everything else here is unexpected (DB failure, bad
+            // stored time zone, etc.) and worth an operator-visible record before it rethrows for
+            // the global exception handler to turn into a safe HTTP 500.
+            operationalEventLogger.CsvExportFailed(
+                userId,
+                request.StartUtc is not null || request.EndUtc is not null,
+                request.CategoryId is not null,
+                !string.IsNullOrWhiteSpace(request.Search),
+                exception);
+            throw;
         }
-
-        if (request.CategoryId is not null)
-        {
-            query = query.Where(e => e.CategoryId == request.CategoryId.Value);
-        }
-
-        var term = request.Search?.Trim();
-        if (!string.IsNullOrEmpty(term))
-        {
-            query = query.Where(e =>
-                EF.Functions.Like(e.Name ?? "", $"%{term}%") ||
-                e.TimeEntryTags.Any(link => EF.Functions.Like(link.Tag.Name, $"%{term}%")));
-        }
-
-        var entries = await query
-            .OrderByDescending(e => e.StartTimeUtc)
-            // Same SQLite-provider workaround as TimeEntryService.ListAsync/DashboardService: it
-            // refuses to translate ORDER BY on a raw ulong column. No Skip/Take — export is
-            // intentionally unpaginated.
-            .ThenByDescending(e => (long)e.Id)
-            .Include(e => e.Category)
-            .Include(e => e.TimeEntryTags)
-            .ThenInclude(link => link.Tag)
-            .ToListAsync(cancellationToken);
-
-        var rows = entries.Select(entry => BuildRow(entry, timeZone, settings.TimeZoneId));
-        var content = CsvWriter.Write(Headers, rows);
-        var fileName = BuildFileName(request.StartUtc, request.EndUtc, timeZone);
-
-        return new CsvExportDocument(content, fileName);
     }
 
     private static string[] BuildRow(TimeEntry entry, TimeZoneInfo timeZone, string timeZoneId)
