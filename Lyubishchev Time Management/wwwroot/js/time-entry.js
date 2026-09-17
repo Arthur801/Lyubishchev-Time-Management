@@ -1,11 +1,29 @@
 import { formatDuration } from './dashboard-state.mjs';
+import {
+  getZonedRangeForPreset,
+  isoToDateTimeLocalValue,
+  dateTimeLocalValueToUtcIso,
+  formatTimeOfDayInZone,
+  zonedDateKey,
+} from './timezone.mjs';
 
 const page = document.querySelector('#history-page');
 
 if (page) {
   const $ = (selector) => document.querySelector(selector);
 
-  const state = { range: 'today', categoryId: '', search: '', page: 1, pageSize: 50, items: [], totalCount: 0 };
+  const state = {
+    range: 'today',
+    categoryId: '',
+    search: '',
+    page: 1,
+    pageSize: 50,
+    items: [],
+    totalCount: 0,
+    // Overwritten from GET /api/settings/timezone before the first fetch; this fallback only
+    // covers the brief window before that call resolves.
+    timeZoneId: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  };
   const modal = { tags: [], editingId: null };
 
   function getCsrfToken() {
@@ -24,40 +42,8 @@ if (page) {
     return payload;
   }
 
-  function startOfLocalDay(date) {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  }
-
-  function startOfLocalWeek(date) {
-    const start = startOfLocalDay(date);
-    start.setDate(start.getDate() - start.getDay());
-    return start;
-  }
-
-  function getUtcRangeForPreset(preset) {
-    const now = new Date();
-    if (preset === 'today') {
-      const start = startOfLocalDay(now);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 1);
-      return { startUtc: start.toISOString(), endUtc: end.toISOString() };
-    }
-    if (preset === 'week') {
-      const start = startOfLocalWeek(now);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 7);
-      return { startUtc: start.toISOString(), endUtc: end.toISOString() };
-    }
-    if (preset === 'month') {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      return { startUtc: start.toISOString(), endUtc: end.toISOString() };
-    }
-    return { startUtc: null, endUtc: null };
-  }
-
   function buildListQuery() {
-    const { startUtc, endUtc } = getUtcRangeForPreset(state.range);
+    const { startUtc, endUtc } = getZonedRangeForPreset(state.range, state.timeZoneId);
     const params = new URLSearchParams();
     if (startUtc) params.set('startUtc', startUtc);
     if (endUtc) params.set('endUtc', endUtc);
@@ -86,23 +72,16 @@ if (page) {
     }
   }
 
-  function localDateKey(isoString) {
-    const date = new Date(isoString);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  }
-
   function formatGroupHeading(dateKey) {
     const [year, month, day] = dateKey.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    const days = Math.round((startOfLocalDay(new Date()) - date) / 86400000);
+    const dateUtc = Date.UTC(year, month - 1, day);
+    const todayKey = zonedDateKey(new Date().toISOString(), state.timeZoneId);
+    const [todayYear, todayMonth, todayDay] = todayKey.split('-').map(Number);
+    const todayUtc = Date.UTC(todayYear, todayMonth - 1, todayDay);
+    const days = Math.round((todayUtc - dateUtc) / 86400000);
     const label = days === 0 ? '今天' : days === 1 ? '昨天' : `${month} 月 ${day} 日`;
-    const weekday = ['日', '一', '二', '三', '四', '五', '六'][date.getDay()];
+    const weekday = ['日', '一', '二', '三', '四', '五', '六'][new Date(dateUtc).getUTCDay()];
     return `${label} · 週${weekday}`;
-  }
-
-  function formatTimeOfDay(isoString) {
-    const date = new Date(isoString);
-    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
   }
 
   function renderEntryRow(entry) {
@@ -114,7 +93,7 @@ if (page) {
         <span class="entry-name"><i class="legend-dot" style="background:${color}"></i>${name}</span>
         <div class="entry-meta">${tagsMarkup}</div>
       </div>
-      <span class="entry-time">${formatTimeOfDay(entry.startTimeUtc)} – ${formatTimeOfDay(entry.endTimeUtc)}</span>
+      <span class="entry-time">${formatTimeOfDayInZone(entry.startTimeUtc, state.timeZoneId)} – ${formatTimeOfDayInZone(entry.endTimeUtc, state.timeZoneId)}</span>
       <span class="entry-duration">${formatDuration(entry.durationSeconds / 60)}</span>
       <div class="entry-actions">
         <button class="icon-btn" type="button" data-edit="${entry.id}" aria-label="編輯「${name}」">✎</button>
@@ -129,7 +108,7 @@ if (page) {
 
     const byDate = new Map();
     state.items.forEach((entry) => {
-      const key = localDateKey(entry.startTimeUtc);
+      const key = zonedDateKey(entry.startTimeUtc, state.timeZoneId);
       if (!byDate.has(key)) byDate.set(key, []);
       byDate.get(key).push(entry);
     });
@@ -226,12 +205,6 @@ if (page) {
       .join('');
   }
 
-  function toDateTimeLocalValue(isoString) {
-    const date = new Date(isoString);
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-  }
-
   function openModal(mode, entry) {
     modal.editingId = mode === 'edit' ? entry.id : null;
     $('#entry-modal-title').textContent = mode === 'edit' ? '編輯紀錄' : '新增紀錄';
@@ -242,8 +215,8 @@ if (page) {
     renderModalTags();
 
     const anchor = entry ? entry.startTimeUtc : new Date().toISOString();
-    $('#entry-start').value = toDateTimeLocalValue(entry ? entry.startTimeUtc : anchor);
-    $('#entry-end').value = toDateTimeLocalValue(entry ? entry.endTimeUtc : anchor);
+    $('#entry-start').value = isoToDateTimeLocalValue(entry ? entry.startTimeUtc : anchor, state.timeZoneId);
+    $('#entry-end').value = isoToDateTimeLocalValue(entry ? entry.endTimeUtc : anchor, state.timeZoneId);
 
     modalEl.showModal();
   }
@@ -280,8 +253,8 @@ if (page) {
     const categoryValue = $('#entry-category').value;
     const body = {
       name: $('#entry-name').value.trim() || null,
-      startTimeUtc: new Date(start).toISOString(),
-      endTimeUtc: new Date(end).toISOString(),
+      startTimeUtc: dateTimeLocalValueToUtcIso(start, state.timeZoneId),
+      endTimeUtc: dateTimeLocalValueToUtcIso(end, state.timeZoneId),
       categoryId: categoryValue ? Number(categoryValue) : null,
       tags: modal.tags,
     };
@@ -300,5 +273,15 @@ if (page) {
     }
   });
 
-  fetchEntries();
+  async function init() {
+    try {
+      const settings = await callApi('/api/settings/timezone');
+      state.timeZoneId = settings.timeZoneId;
+    } catch {
+      // Keep the browser-timezone fallback set on `state` above.
+    }
+    await fetchEntries();
+  }
+
+  init();
 }

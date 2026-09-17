@@ -22,4 +22,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
     }
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+    }
 }

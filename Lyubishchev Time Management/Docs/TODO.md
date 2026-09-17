@@ -48,6 +48,7 @@
 
 ## 7. History List
 - [x] List View 頁面（`Views/TimeEntry/Index.cshtml`、`history.css`、`time-entry.js`）已串接真實 API，含分頁（50 筆/頁）、日期範圍/分類/搜尋篩選、新增/編輯表單、刪除，取代原本的 mock data 原型
+- [x] `time-entry.js` 的日期範圍快捷篩選、清單分組/顯示時間、新增/編輯表單的時間欄位已全部改用帳號時區（`GET /api/settings/timezone` + `wwwroot/js/timezone.mjs`），不再用瀏覽器本地時區，修正建立/編輯時間與顯示時間不一致的 bug，細節見 `Docs/HANDOFF.md`
 - 詳細實作說明見 [`Docs/TimeEntryCrud.md`](TimeEntryCrud.md)
 
 ## 8. Calendar View
@@ -123,8 +124,9 @@
 - Timezone settings（`TimeZoneCatalog` 白名單、`UserSettingsService`、`/Settings` 頁面與 `GET`/`PATCH /api/settings/timezone`）與 `TimeAggregationService`（本地日期範圍轉 UTC 半開區間、跨午夜/DST 逐日切分、Category/Tag 聚合，供 Dashboard/Report 共用），詳見 [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md)
 - Dashboard 真實資料串接（`DashboardService` 組裝本期/相鄰比較期/最近五筆活動，`GET /api/dashboard`，`dashboard.js` 移除全部 mock data，最近活動時間改用帳號時區顯示），詳見 [`Docs/Dashboard.md`](Dashboard.md)
 - Secrets 管理：連線字串、JWT 簽章金鑰皆使用 `dotnet user-secrets`，未提交至 Git
+- **修正一個影響全站的 DateTime 序列化 bug**：`AppDbContext` 新增 `ConfigureConventions` + `Data/UtcDateTimeConverter.cs`，讓所有從 MySQL 讀回的 `DateTime` 都強制標記 `DateTimeKind.Utc`（MySQL `DATETIME` 欄位不記錄時區，EF Core 讀回時預設是 `Unspecified`，導致 JSON 序列化漏掉 `Z` 尾碼，前端任何 `new Date(...)` 都會誤判成瀏覽器本地時間）；同時把 History List（`time-entry.js`）改成用帳號時區（見上方第 7 項），細節見 `Docs/HANDOFF.md`
 
 ## 下一步建議優先順序
 1. Report（第 11 項）串接 `TimeAggregationService`，延續 `DashboardService` 的「只組裝、不重寫聚合邏輯」模式（Category 圓餅圖、Tag 長條圖）
-2. 重新檢視 Timer 卡片（`timer.js`）與 History List（`time-entry.js`）目前用瀏覽器本地時區計算日期範圍的簡化做法，改用使用者在 `/Settings` 設定的時區（Dashboard 的最近活動時間已經改好，可參考同一個模式）
+2. Timer 卡片（`timer.js`）即時顯示目前仍用瀏覽器本地時區計算日期範圍，尚未改用使用者在 `/Settings` 設定的時區（History List 已於本次修正改用帳號時區，可參考同一個模式：`wwwroot/js/timezone.mjs`）
 3. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）
