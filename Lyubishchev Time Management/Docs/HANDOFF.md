@@ -1,6 +1,6 @@
 # 專案交接摘要（給接手的 AI Agent）
 
-最後更新：2026-09-17，涵蓋到 commit `74090e8`（"Implement Manual TimeEntry CRUD with Category/Tag support"）。本文件的目的是讓另一個 AI agent 不需要重新爬梳整個對話記錄，就能接續目前的進度。**開始工作前務必先讀 `AGENTS.md`（專案根目錄，`CLAUDE.md` 只是 `@AGENTS.md` 的轉介）——那是這個專案唯一的權威規格文件，所有設計決策都必須對齊它。**
+最後更新：2026-09-17，涵蓋到 Category/Tag 管理功能完成（依照 [`Docs/superpowers/specs/2026-09-17-category-tag-management-design.md`](superpowers/specs/2026-09-17-category-tag-management-design.md) 與 [`Docs/superpowers/plans/2026-09-17-category-tag-management.md`](superpowers/plans/2026-09-17-category-tag-management.md) 實作）。本文件的目的是讓另一個 AI agent 不需要重新爬梳整個對話記錄，就能接續目前的進度。**開始工作前務必先讀 `AGENTS.md`（專案根目錄，`CLAUDE.md` 只是 `@AGENTS.md` 的轉介）——那是這個專案唯一的權威規格文件，所有設計決策都必須對齊它。**
 
 ---
 
@@ -22,8 +22,8 @@
 | 2 | User / Register / Login / Logout / JWT | ✅ 完成 | [`Docs/JWT.md`](JWT.md) |
 | 3 | RunningTimer / Start / Stop | ✅ 完成 | [`Docs/RunningTimerStartStop.md`](RunningTimerStartStop.md) |
 | 4 | Manual TimeEntry CRUD | ✅ 完成 | [`Docs/TimeEntryCrud.md`](TimeEntryCrud.md) |
-| 5 | Category | 🟡 只做了唯讀查詢+擁有權驗證（供第4項用），完整管理頁面/CRUD API 未做 | 見下方「下一步」 |
-| 6 | Tag + TimeEntryTag | 🟡 只做了 inline find-or-create（供第4項用），完整管理頁面/CRUD API 未做 | 見下方「下一步」 |
+| 5 | Category | ✅ 完成 | 見下方「Category/Tag 管理」章節 |
+| 6 | Tag + TimeEntryTag | ✅ 完成 | 見下方「Category/Tag 管理」章節 |
 | 7 | History List | ✅ 完成（隨第4項一起做，非 mock data） | [`Docs/TimeEntryCrud.md`](TimeEntryCrud.md) |
 | 8 | Calendar View | ❌ 未開始 | — |
 | 9 | TimeAggregationService | ❌ 未開始 | — |
@@ -36,9 +36,25 @@
 | 16 | Nginx / EC2 / Backup | ❌ 未開始 | — |
 
 **建議下一步優先順序**（`Docs/TODO.md` 目前寫的）：
-1. Category、Tag 完整管理頁面（`CategoryService`/`TagService` + 對應 Controller/View/Api）
-2. `TimeAggregationService` + Dashboard/Report（讓 Dashboard 統計卡片/圖表串接真實資料）
+1. `TimeAggregationService` + Dashboard/Report（讓 Dashboard 統計卡片/圖表串接真實資料）
+2. Timezone settings（`UserSettingsService`/`SettingsController`/`PATCH /api/settings/timezone`），並一併重新檢視 Dashboard 計時器與 History List 目前用瀏覽器本地時區計算日期範圍的簡化做法
 3. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）
+
+---
+
+## Category/Tag 管理（第 5、6 項）實作紀錄
+
+依照 [`Docs/superpowers/specs/2026-09-17-category-tag-management-design.md`](superpowers/specs/2026-09-17-category-tag-management-design.md) 完整實作，設計文件本身沒有 TBD，這裡只記錄實作時的具體事實：
+
+- **唯一性鍵**：`Category`、`Tag` 都新增了持久化欄位 `NormalizedName`（`Name.Trim().ToUpperInvariant()`，由 `Infrastructure/Text/ResourceName.TryNormalize` 統一產生），取代原本的 `Category(UserId, Name)` 非唯一索引與 `Tag(UserId, Name)` 唯一索引，改為 `(UserId, NormalizedName)` 唯一索引（兩者皆是）。這樣「Focus」、`focus`、` focus `在 MySQL 與 SQLite 上都保證衝突，不依賴資料庫預設 collation。
+- **Migration**：`Data/Migrations/20260917003121_AddNormalizedResourceNames.cs`。實作時發現一個 MySQL 特有的坑：不能先 `DROP INDEX` 舊索引再建新索引——`(UserId, Name)`/`(UserId, Name)` 是唯一覆蓋 `UserId` 這個外鍵欄位的索引，MySQL/InnoDB 會拒絕在沒有替代索引覆蓋外鍵欄位時把它砍掉（錯誤訊息：`Cannot drop index 'IX_Tags_UserId_Name': needed in a foreign key constraint`）。修正方式是把 `Up`/`Down` 都改成「先建新索引、回填資料、再砍舊索引」的順序（前提是新舊索引都以 `UserId` 起頭）。已在本機 MySQL dev 資料庫（`dotnet ef database update`）驗證套用成功；`Up` 內用 `UPDATE ... SET NormalizedName = UPPER(TRIM(Name))` 明確回填既有資料，而不是依賴欄位預設值。
+- **API 路由與錯誤碼**：`GET/POST/PATCH{id}/DELETE{id}` 分別掛在 `/api/categories`、`/api/tags`（`CategoryApiController`/`TagApiController`，`[Authorize]` + 非 GET 皆 `[ValidateAntiForgeryToken]`）。錯誤碼：`INVALID_NAME`（400，全空白名稱）、`CATEGORY_NAME_CONFLICT`/`TAG_NAME_CONFLICT`（409，同使用者重複正規化名稱）、`CATEGORY_NOT_FOUND`/`TAG_NOT_FOUND`（404，跨使用者或不存在）。
+- **刪除語意**：完全交給既有的 DB 外鍵約束處理，Service 用 `ExecuteDeleteAsync` 直接刪除，不手動處理關聯資料——Category 刪除觸發 `TimeEntries.CategoryId` 的 `ON DELETE SET NULL`；Tag 刪除觸發 `TimeEntryTags.TagId` 的 `ON DELETE CASCADE`，TimeEntry 本身都保留。
+- **inline Tag 共用同一套規則**：`TimeEntryService.NormalizeTagNames`/`FindOrCreateTagsAsync` 已改為用 `ResourceName.TryNormalize` 正規化、以 `NormalizedName` 查找/建立，管理頁建立的 Tag 與 TimeEntry 編輯視窗 inline 建立的 Tag 保證是同一套唯一性判斷，不會因大小寫或空白產生第二筆。
+- **前端**：`Views/Category/Index.cshtml`、`Views/Tag/Index.cshtml`（Tag 頁不含色彩欄位），`wwwroot/js/category.js`/`tag.js` 沿用 `time-entry.js` 的 `callApi()` 慣例（CSRF header、Problem Details `detail` 呈現錯誤），刪除前 `window.confirm` 提示 SET NULL / CASCADE 的後果；名稱一律用 `textContent`/DOM node 渲染，不把使用者輸入字串接進 `innerHTML`（這點比既有 `time-entry.js` 的 `renderEntryRow` 更嚴謹，後者仍是字串拼接，如果之後要動 History List 建議一併檢視）。Dashboard、History List 側欄的「分類」「標籤」`href="#"` 已改為指向這兩個真實路由；「報表」「設定」仍維持 placeholder。
+- **測試**：新增 `Tests/TimeEntryFlow.Tests/TestDatabase.cs`（抽出共用的 SQLite shared in-memory fixture，`TimeEntryServiceTests.cs` 也改用它），`Integration/CategoryServiceTests.cs`、`Integration/TagServiceTests.cs`，以及 `TimeEntryServiceTests` 新增一個 inline tag 正規化重用的回歸測試。`Tests/TimeEntryFlow.Tests` 目前共 35 個測試全過；併發重複建立 Tag 的測試（`Task.WhenAll` 真平行）額外重複執行 4 次確認無 flaky。
+- **手動驗證**：本機啟動 `dotnet run --no-build`（port 5180），用 `curl` 走完整流程：註冊 → 進入 `/Category`、`/Tag` 頁面（200，DOM 結構正確、Tag 頁確認不含色彩欄位）→ 建立/改名/刪除 Category（含指派給一筆 TimeEntry 後刪除，確認該筆變成未分類）→ 重複名稱回 409 → 建立 Tag、以 inline 方式在 TimeEntry 建立時重用同一個正規化 Tag、刪除 Tag 後確認 TimeEntry 保留但標籤消失。驗證用的測試資料（TimeEntry）已於驗證後刪除。
+- **範圍邊界**：完全比照設計文件「不在範圍」——沒有動到 Dashboard/Report 彙總、時區設定、CSV 匯出；`TimeEntryService` 只改了 inline tag 正規化這一段，其餘 CRUD 邏輯未變動。
 
 ---
 
@@ -89,9 +105,9 @@
 
 ## 開始接手前建議的檢查清單
 
-1. `git log --oneline -5` 確認目前在 `74090e8` 之後（若使用者又做了其他修改，先弄清楚差異）。
+1. `git log --oneline -5` 確認目前在 Category/Tag 管理功能完成之後（若使用者又做了其他修改，先弄清楚差異）。
 2. 讀 `AGENTS.md` 全文一次（規則沒有變過，但務必自己確認，不要只信這份摘要）。
 3. 讀 `Docs/TODO.md` 確認目前狀態（這份文件比本摘要新，衝突時以 `TODO.md` 為準）。
-4. 依使用者這次想做的項目，讀對應的 `Docs/*.md` 設計文件（`JWT.md`／`RateLimitingAndAuthLogging.md`／`RunningTimerStartStop.md`／`TimeEntryCrud.md`）取得可重用的既有模式與已知的取捨/限制。
+4. 依使用者這次想做的項目，讀對應的 `Docs/*.md` 設計文件（`JWT.md`／`RateLimitingAndAuthLogging.md`／`RunningTimerStartStop.md`／`TimeEntryCrud.md`／`superpowers/specs/2026-09-17-category-tag-management-design.md`）取得可重用的既有模式與已知的取捨/限制。
 5. 動工前先 `dotnet build "Lyubishchev Time Management.csproj"` 一次確認目前基準是綠的，再依序跑三個測試專案確認 12/7/16 全過，作為「改動前」的基準線。
 6. 做完之後：更新 `Docs/TODO.md`、視情況新增一份 `Docs/<功能名稱>.md`（比照既有四份的格式：設計思路 → 整體流程 → 檔案清單與內容 → 尚未涵蓋的部分），並在自動化測試全過之後，額外跑一次真實伺服器手動驗證再回報完成。
