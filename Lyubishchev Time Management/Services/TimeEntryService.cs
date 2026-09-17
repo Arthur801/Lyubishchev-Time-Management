@@ -1,5 +1,6 @@
 using Lyubishchev_Time_Management.Data;
 using Lyubishchev_Time_Management.Infrastructure.Clock;
+using Lyubishchev_Time_Management.Infrastructure.Text;
 using Lyubishchev_Time_Management.Models.Entities;
 using Lyubishchev_Time_Management.Models.Requests;
 using Lyubishchev_Time_Management.Models.Responses;
@@ -212,7 +213,7 @@ public sealed class TimeEntryService(AppDbContext dbContext, IClock clock)
     private async Task<Category?> GetOwnedCategoryAsync(ulong userId, ulong categoryId, CancellationToken cancellationToken)
         => await dbContext.Categories.AsNoTracking().SingleOrDefaultAsync(c => c.Id == categoryId && c.UserId == userId, cancellationToken);
 
-    private static List<string> NormalizeTagNames(List<string>? rawNames)
+    private static List<(string Name, string NormalizedName)> NormalizeTagNames(List<string>? rawNames)
     {
         if (rawNames is null or { Count: 0 })
         {
@@ -220,23 +221,26 @@ public sealed class TimeEntryService(AppDbContext dbContext, IClock clock)
         }
 
         return rawNames
-            .Select(name => name.Trim())
-            .Where(name => name.Length > 0)
-            .Select(name => name.Length > 100 ? name[..100] : name)
-            .Distinct(StringComparer.Ordinal)
+            .Select(raw => ResourceName.TryNormalize(raw, out var name, out var normalizedName)
+                ? (Name: name, NormalizedName: normalizedName)
+                : default)
+            .Where(item => !string.IsNullOrEmpty(item.NormalizedName))
+            .DistinctBy(item => item.NormalizedName, StringComparer.Ordinal)
             .Take(MaxTagsPerEntry)
             .ToList();
     }
 
-    private async Task<List<Tag>> FindOrCreateTagsAsync(ulong userId, IReadOnlyCollection<string> names, CancellationToken cancellationToken)
+    private async Task<List<Tag>> FindOrCreateTagsAsync(
+        ulong userId, IReadOnlyCollection<(string Name, string NormalizedName)> tagNames, CancellationToken cancellationToken)
     {
-        if (names.Count == 0)
+        if (tagNames.Count == 0)
         {
             return [];
         }
 
-        var existing = await dbContext.Tags.Where(t => t.UserId == userId && names.Contains(t.Name)).ToListAsync(cancellationToken);
-        var missing = names.Except(existing.Select(t => t.Name)).ToList();
+        var normalizedKeys = tagNames.Select(t => t.NormalizedName).ToList();
+        var existing = await dbContext.Tags.Where(t => t.UserId == userId && normalizedKeys.Contains(t.NormalizedName)).ToListAsync(cancellationToken);
+        var missing = tagNames.Where(t => existing.All(e => e.NormalizedName != t.NormalizedName)).ToList();
         if (missing.Count == 0)
         {
             return existing;
@@ -244,7 +248,7 @@ public sealed class TimeEntryService(AppDbContext dbContext, IClock clock)
 
         var now = clock.UtcNow;
         var newTags = missing
-            .Select(name => new Tag { UserId = userId, Name = name, NormalizedName = name.ToUpperInvariant(), CreatedAtUtc = now, UpdatedAtUtc = now, User = null! })
+            .Select(item => new Tag { UserId = userId, Name = item.Name, NormalizedName = item.NormalizedName, CreatedAtUtc = now, UpdatedAtUtc = now, User = null! })
             .ToList();
         dbContext.Tags.AddRange(newTags);
 
@@ -256,16 +260,16 @@ public sealed class TimeEntryService(AppDbContext dbContext, IClock clock)
         catch (DbUpdateException)
         {
             // Another request for the same user created one of these tag names between our read
-            // and write (UserId+Name is a unique index). Detach the failed inserts -- retrying
-            // them verbatim would just hit the same unique-constraint violation again -- and
-            // re-read: the concurrent writer's rows are now visible and committed.
+            // and write (UserId+NormalizedName is a unique index). Detach the failed inserts --
+            // retrying them verbatim would just hit the same unique-constraint violation again --
+            // and re-read: the concurrent writer's rows are now visible and committed.
             foreach (var tag in newTags)
             {
                 dbContext.Entry(tag).State = EntityState.Detached;
             }
 
-            var reloaded = await dbContext.Tags.Where(t => t.UserId == userId && names.Contains(t.Name)).ToListAsync(cancellationToken);
-            if (names.Except(reloaded.Select(t => t.Name)).Any())
+            var reloaded = await dbContext.Tags.Where(t => t.UserId == userId && normalizedKeys.Contains(t.NormalizedName)).ToListAsync(cancellationToken);
+            if (normalizedKeys.Except(reloaded.Select(t => t.NormalizedName)).Any())
             {
                 throw; // Not a name collision -- a real DB error, surface it.
             }

@@ -145,6 +145,41 @@ public sealed class TimeEntryServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_inline_tag_reuses_the_normalized_key()
+    {
+        var (keepAlive, options, userId) = await CreateSharedDatabaseAsync();
+        await using var _ = keepAlive;
+        await using var dbContext = new AppDbContext(options);
+        var service = new TimeEntryService(dbContext, new TestClock(DateTime.UtcNow));
+
+        var first = await service.CreateAsync(userId, new CreateTimeEntryRequest
+        {
+            StartTimeUtc = Utc(2026, 1, 1, 9, 0),
+            EndTimeUtc = Utc(2026, 1, 1, 10, 0),
+            Tags = ["Focus"],
+        }, CancellationToken.None);
+
+        var second = await service.CreateAsync(userId, new CreateTimeEntryRequest
+        {
+            StartTimeUtc = Utc(2026, 1, 1, 11, 0),
+            EndTimeUtc = Utc(2026, 1, 1, 12, 0),
+            Tags = [" focus "],
+        }, CancellationToken.None);
+
+        Assert.True(first.Succeeded);
+        Assert.True(second.Succeeded);
+        Assert.Equal(["Focus"], first.Entry!.Tags);
+        Assert.Equal(["Focus"], second.Entry!.Tags);
+
+        var tags = await dbContext.Tags.Where(t => t.UserId == userId).ToListAsync();
+        var tag = Assert.Single(tags);
+        Assert.Equal("Focus", tag.Name);
+
+        var links = await dbContext.TimeEntryTags.Where(l => l.TagId == tag.Id).ToListAsync();
+        Assert.Equal(2, links.Count);
+    }
+
+    [Fact]
     public async Task UpdateAsync_merges_a_partial_change_and_still_enforces_end_after_start()
     {
         var (keepAlive, options, userId) = await CreateSharedDatabaseAsync();
