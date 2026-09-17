@@ -1,0 +1,9 @@
+.settings-content{padding-top:52px}
+.settings-hint{color:var(--muted);font-size:.8rem}
+.settings-card{display:grid;gap:12px;max-width:420px;padding:22px;border:1px solid var(--line);border-radius:13px;background:var(--surface);box-shadow:0 6px 16px rgb(37 42 52 / 2%)}
+.settings-card label{color:var(--muted);font-size:.72rem;font-weight:800}
+.settings-card select{min-height:40px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);font:inherit}
+@media(max-width:720px){
+    .settings-content{padding-top:34px}
+    .settings-card{max-width:none}
+}

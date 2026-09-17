@@ -3,6 +3,7 @@ using System.Threading.RateLimiting;
 using Lyubishchev_Time_Management.Data;
 using Lyubishchev_Time_Management.Infrastructure.Clock;
 using Lyubishchev_Time_Management.Infrastructure.Logging;
+using Lyubishchev_Time_Management.Infrastructure.Time;
 using Lyubishchev_Time_Management.Security;
 using Lyubishchev_Time_Management.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -43,6 +44,9 @@ builder.Services.AddScoped<TimerService>();
 builder.Services.AddScoped<TimeEntryService>();
 builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<TagService>();
+builder.Services.AddSingleton<TimeZoneCatalog>();
+builder.Services.AddScoped<UserSettingsService>();
+builder.Services.AddScoped<TimeAggregationService>();
 
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 
