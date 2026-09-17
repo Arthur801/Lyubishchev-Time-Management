@@ -1,8 +1,6 @@
 using Lyubishchev_Time_Management.Data;
-using Lyubishchev_Time_Management.Models.Entities;
 using Lyubishchev_Time_Management.Models.Requests;
 using Lyubishchev_Time_Management.Services;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -10,57 +8,13 @@ namespace TimeEntryFlow.Tests.Integration;
 
 public sealed class TimeEntryServiceTests
 {
-    private static async Task<(SqliteConnection KeepAlive, DbContextOptions<AppDbContext> Options, ulong UserId)> CreateSharedDatabaseAsync()
-    {
-        // Shared-cache SQLite in-memory database: every DbContext built from these options sees
-        // the same data, as long as the KeepAlive connection stays open. Needed (instead of the
-        // EF Core InMemory provider) so unique-constraint and FK enforcement behave like MySQL.
-        var connectionString = $"Data Source=file:{Guid.NewGuid():N}?mode=memory&cache=shared;Default Timeout=5";
-        var keepAlive = new SqliteConnection(connectionString);
-        keepAlive.Open();
+    private static Task<(Microsoft.Data.Sqlite.SqliteConnection KeepAlive, DbContextOptions<AppDbContext> Options, ulong UserId)> CreateSharedDatabaseAsync()
+        => TestDatabase.CreateAsync();
 
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connectionString).Options;
-
-        ulong userId;
-        await using (var initContext = new AppDbContext(options))
-        {
-            await initContext.Database.EnsureCreatedAsync();
-            userId = await CreateUserAsync(initContext);
-        }
-
-        return (keepAlive, options, userId);
-    }
-
-    private static async Task<ulong> CreateUserAsync(AppDbContext dbContext)
-    {
-        var user = new User
-        {
-            Email = $"{Guid.NewGuid():N}@example.com",
-            PasswordHash = "not-a-real-hash",
-            TimeZoneId = "Asia/Taipei",
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow,
-        };
-        dbContext.Users.Add(user);
-        await dbContext.SaveChangesAsync();
-        return user.Id;
-    }
+    private static Task<ulong> CreateUserAsync(AppDbContext dbContext) => TestDatabase.CreateUserAsync(dbContext);
 
     private static async Task<ulong> CreateCategoryAsync(AppDbContext dbContext, ulong userId, string name = "Work", string color = "#e5533d")
-    {
-        var category = new Category
-        {
-            UserId = userId,
-            Name = name,
-            Color = color,
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow,
-            User = null!,
-        };
-        dbContext.Categories.Add(category);
-        await dbContext.SaveChangesAsync();
-        return category.Id;
-    }
+        => (await TestDatabase.CreateCategoryAsync(dbContext, userId, name, color)).Id;
 
     private static DateTime Utc(int year, int month, int day, int hour, int minute)
         => new(year, month, day, hour, minute, 0, DateTimeKind.Utc);
@@ -187,6 +141,41 @@ public sealed class TimeEntryServiceTests
         Assert.Single(tags);
 
         var links = await assertContext.TimeEntryTags.Where(l => l.TagId == tags[0].Id).ToListAsync();
+        Assert.Equal(2, links.Count);
+    }
+
+    [Fact]
+    public async Task CreateAsync_inline_tag_reuses_the_normalized_key()
+    {
+        var (keepAlive, options, userId) = await CreateSharedDatabaseAsync();
+        await using var _ = keepAlive;
+        await using var dbContext = new AppDbContext(options);
+        var service = new TimeEntryService(dbContext, new TestClock(DateTime.UtcNow));
+
+        var first = await service.CreateAsync(userId, new CreateTimeEntryRequest
+        {
+            StartTimeUtc = Utc(2026, 1, 1, 9, 0),
+            EndTimeUtc = Utc(2026, 1, 1, 10, 0),
+            Tags = ["Focus"],
+        }, CancellationToken.None);
+
+        var second = await service.CreateAsync(userId, new CreateTimeEntryRequest
+        {
+            StartTimeUtc = Utc(2026, 1, 1, 11, 0),
+            EndTimeUtc = Utc(2026, 1, 1, 12, 0),
+            Tags = [" focus "],
+        }, CancellationToken.None);
+
+        Assert.True(first.Succeeded);
+        Assert.True(second.Succeeded);
+        Assert.Equal(["Focus"], first.Entry!.Tags);
+        Assert.Equal(["Focus"], second.Entry!.Tags);
+
+        var tags = await dbContext.Tags.Where(t => t.UserId == userId).ToListAsync();
+        var tag = Assert.Single(tags);
+        Assert.Equal("Focus", tag.Name);
+
+        var links = await dbContext.TimeEntryTags.Where(l => l.TagId == tag.Id).ToListAsync();
         Assert.Equal(2, links.Count);
     }
 
