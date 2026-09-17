@@ -1,6 +1,6 @@
 # 專案交接摘要（給接手的 AI Agent）
 
-最後更新：2026-09-17，涵蓋到 Category/Tag 管理功能完成（依照 [`Docs/superpowers/specs/2026-09-17-category-tag-management-design.md`](superpowers/specs/2026-09-17-category-tag-management-design.md) 與 [`Docs/superpowers/plans/2026-09-17-category-tag-management.md`](superpowers/plans/2026-09-17-category-tag-management.md) 實作）。本文件的目的是讓另一個 AI agent 不需要重新爬梳整個對話記錄，就能接續目前的進度。**開始工作前務必先讀 `AGENTS.md`（專案根目錄，`CLAUDE.md` 只是 `@AGENTS.md` 的轉介）——那是這個專案唯一的權威規格文件，所有設計決策都必須對齊它。**
+最後更新：2026-09-17，涵蓋到 Timezone settings 與 TimeAggregationService 完成（依照 [`Docs/superpowers/specs/2026-09-17-timezone-and-aggregation-design.md`](superpowers/specs/2026-09-17-timezone-and-aggregation-design.md) 與對應的 [`Docs/superpowers/plans/2026-09-17-timezone-settings.md`](superpowers/plans/2026-09-17-timezone-settings.md)、[`Docs/superpowers/plans/2026-09-17-time-aggregation-service.md`](superpowers/plans/2026-09-17-time-aggregation-service.md) 實作；再往前是 Category/Tag 管理功能，依照 [`Docs/superpowers/specs/2026-09-17-category-tag-management-design.md`](superpowers/specs/2026-09-17-category-tag-management-design.md) 與 [`Docs/superpowers/plans/2026-09-17-category-tag-management.md`](superpowers/plans/2026-09-17-category-tag-management.md) 實作）。本文件的目的是讓另一個 AI agent 不需要重新爬梳整個對話記錄，就能接續目前的進度。**開始工作前務必先讀 `AGENTS.md`（專案根目錄，`CLAUDE.md` 只是 `@AGENTS.md` 的轉介）——那是這個專案唯一的權威規格文件，所有設計決策都必須對齊它。**
 
 ---
 
@@ -26,18 +26,18 @@
 | 6 | Tag + TimeEntryTag | ✅ 完成 | 見下方「Category/Tag 管理」章節 |
 | 7 | History List | ✅ 完成（隨第4項一起做，非 mock data） | [`Docs/TimeEntryCrud.md`](TimeEntryCrud.md) |
 | 8 | Calendar View | ❌ 未開始 | — |
-| 9 | TimeAggregationService | ❌ 未開始 | — |
-| 10 | Dashboard | 🟡 頁面殼 + 計時器卡片是真資料，其餘統計卡片/圖表仍是前端 mock（`dashboard-state.mjs`） | — |
+| 9 | TimeAggregationService | ✅ 完成（尚未被 Dashboard/Report 消費） | [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md) |
+| 10 | Dashboard | 🟡 頁面殼 + 計時器卡片是真資料，其餘統計卡片/圖表仍是前端 mock（`dashboard-state.mjs`），尚未串接 `TimeAggregationService` | — |
 | 11 | Report | ❌ 未開始 | — |
-| 12 | Timezone settings | ❌ 未開始（`User.TimeZoneId` 全部寫死預設值，無 UI 可改） | — |
+| 12 | Timezone settings | ✅ 完成（`/Settings` 頁面可選、持久化；Dashboard 計時器與 History List 尚未改用使用者設定的時區，見下方章節） | [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md) |
 | 13 | CSV export | ❌ 未開始 | — |
 | 14 | RWD | 🟡 各頁面 CSS 內建 media query，但沒有集中在 `responsive.css` | — |
 | 15 | Error handling / Logging / Rate limit | 🟡 Rate limiting 與 CSRF 已完成；global exception handler 未確認；`Infrastructure/Logging` 只有 auth 事件 | [`Docs/RateLimitingAndAuthLogging.md`](RateLimitingAndAuthLogging.md) |
 | 16 | Nginx / EC2 / Backup | ❌ 未開始 | — |
 
 **建議下一步優先順序**（`Docs/TODO.md` 目前寫的）：
-1. `TimeAggregationService` + Dashboard/Report（讓 Dashboard 統計卡片/圖表串接真實資料）
-2. Timezone settings（`UserSettingsService`/`SettingsController`/`PATCH /api/settings/timezone`），並一併重新檢視 Dashboard 計時器與 History List 目前用瀏覽器本地時區計算日期範圍的簡化做法
+1. Dashboard/Report 串接 `TimeAggregationService`（讓 Dashboard 統計卡片/圖表串接真實資料；`DashboardService`/`ReportService`/對應 Api Controller 仍是空殼）
+2. 重新檢視 Dashboard 計時器與 History List 目前用瀏覽器本地時區計算日期範圍的簡化做法，改用使用者在 `/Settings` 設定的時區
 3. 全域例外處理與其餘 `Infrastructure/Logging` 事件（DB 錯誤、timer transaction failure、CSV export failure）
 
 ---
@@ -55,6 +55,20 @@
 - **測試**：新增 `Tests/TimeEntryFlow.Tests/TestDatabase.cs`（抽出共用的 SQLite shared in-memory fixture，`TimeEntryServiceTests.cs` 也改用它），`Integration/CategoryServiceTests.cs`、`Integration/TagServiceTests.cs`，以及 `TimeEntryServiceTests` 新增一個 inline tag 正規化重用的回歸測試。`Tests/TimeEntryFlow.Tests` 目前共 35 個測試全過；併發重複建立 Tag 的測試（`Task.WhenAll` 真平行）額外重複執行 4 次確認無 flaky。
 - **手動驗證**：本機啟動 `dotnet run --no-build`（port 5180），用 `curl` 走完整流程：註冊 → 進入 `/Category`、`/Tag` 頁面（200，DOM 結構正確、Tag 頁確認不含色彩欄位）→ 建立/改名/刪除 Category（含指派給一筆 TimeEntry 後刪除，確認該筆變成未分類）→ 重複名稱回 409 → 建立 Tag、以 inline 方式在 TimeEntry 建立時重用同一個正規化 Tag、刪除 Tag 後確認 TimeEntry 保留但標籤消失。驗證用的測試資料（TimeEntry）已於驗證後刪除。
 - **範圍邊界**：完全比照設計文件「不在範圍」——沒有動到 Dashboard/Report 彙總、時區設定、CSV 匯出；`TimeEntryService` 只改了 inline tag 正規化這一段，其餘 CRUD 邏輯未變動。
+
+---
+
+## Timezone settings 與 TimeAggregationService（第 9、12 項）實作紀錄
+
+依照 [`Docs/superpowers/specs/2026-09-17-timezone-and-aggregation-design.md`](superpowers/specs/2026-09-17-timezone-and-aggregation-design.md) 完整實作，設計文件本身沒有 TBD，完整細節（設計思路、整體流程、檔案清單、手動驗證紀錄）見獨立文件 [`Docs/TimezoneAndAggregation.md`](TimezoneAndAggregation.md)，這裡只記重點：
+
+- **`TimeZoneCatalog`（`Infrastructure/Time/`）是唯一的時區白名單/顯示名稱/`TimeZoneInfo` 解析入口**，`UserSettingsService`（寫入 `User.TimeZoneId`）與 `TimeAggregationService`（讀取範圍）共用同一份；13 個常用 IANA 時區，不在白名單的 ID 一律降級為 `UTC`（只保護舊資料，正常更新流程一定先驗證過）。
+- **`TimeAggregationService` 是唯讀服務**：EF 只做 `UserId` 擁有權與 `StartTimeUtc < rangeEndUtc && EndTimeUtc > rangeStartUtc` 的 overlap 過濾，時區轉換／DST 邊界／逐日切分／Category/Tag 分桶全部在記憶體完成（`TimeZoneInfo` 無法翻譯進 EF query）。DST 處理規則：spring-forward 缺口的本地午夜往前找第一個有效時間；fall-back 歧義的本地午夜固定選較早的 UTC 瞬間，確保連續日期範圍前後不重疊、不留縫。
+- **重要地雷：`Dictionary<ulong?, TValue>` 執行期不接受 `null` key，即使 `TKey` 是 nullable 值型別。** 第一版想用 `null` key 代表「未分類」Category 桶，編譯器丟出 `CS8714` 時一開始誤判是型別系統過度嚴格而直接 `#pragma warning disable` 蓋掉，結果測試一跑就在 `Dictionary.FindValue` 炸出 `ArgumentNullException`——`Dictionary` 執行期禁止 `null` key 跟 `TKey` 是不是 nullable 值型別無關。**教訓：`CS8714` 這類警告不要當雜訊蓋掉，先假設它在指出真的執行期問題。** 修正方式：未分類桶改用獨立的 `long` 累加器，不塞進 `Dictionary` 的 key。細節見 `Docs/TimezoneAndAggregation.md` 的「開發過程中抓到的問題」。
+- **API 路由與錯誤碼**：`GET`/`PATCH /api/settings/timezone`（`SettingsApiController`，`[Authorize]`，PATCH 額外 `[ValidateAntiForgeryToken]`）。錯誤碼：`INVALID_TIME_ZONE`（400，缺少/空白/不支援的 ID 都算，刻意不用 ModelState annotation 驗證，避免跟 service 驗證分裂成兩種錯誤格式）、`USER_NOT_FOUND`（404）。
+- **測試**：新增 `Tests/TimeEntryFlow.Tests/Unit/TimeZoneCatalogTests.cs`（純單元測試，仿 `AuthFlow.Tests` 的 `Unit`/`Integration` 分法）、`Integration/UserSettingsServiceTests.cs`、`Integration/TimeAggregationServiceTests.cs`（沿用既有 `TestDatabase` SQLite fixture）。`Tests/TimeEntryFlow.Tests` 目前共 70 個測試全過。
+- **手動驗證**：本機啟動 `dotnet run --no-build`（port 5180），用 `curl` 走完整流程：註冊 → `GET /Settings`（200）→ `GET /api/settings/timezone`（預設 `Asia/Taipei`）→ `PATCH` 改成 `America/New_York`（200）→ 再次 `GET` 確認持久化 → `PATCH` 不支援 ID（400 `INVALID_TIME_ZONE`）。驗證用的測試帳號已於驗證後刪除。
+- **範圍邊界**：完全比照設計文件「不在範圍」——沒有動到 Dashboard/Report 真實資料 API、Calendar View、CSV export、既有 TimeEntry CRUD 表單，也沒有把其他頁面側欄的「設定」`href="#"` 改指向新的 `/Settings` 路由（刻意把改動鎖在設計文件列出的檔案清單內）。
 
 ---
 
@@ -81,7 +95,7 @@
 
 - 每個主要頁面一支 `wwwroot/js/<page>.js`（ES module，`type="module"`），共用的 `callApi()` 寫法：非 GET 帶 `X-CSRF-TOKEN`（讀 `<meta name="csrf-token">`，由 `_Layout.cshtml`/`_AuthLayout.cshtml` 透過 `IAntiforgery.GetAndStoreTokens` 輸出）、`fetch` 回來 `.json().catch(() => null)`、失敗時 `throw new Error(payload?.detail ?? '發生錯誤，請稍後再試。')`。範例：`timer.js`、`time-entry.js`。
 - 標籤（Tag）chip 編輯器的 UI/互動模式已經定型（輸入框 + Enter 或按鈕加入、每個 chip 有 × 移除按鈕），`timer.js` 先做出來，`time-entry.js` 的新增/編輯表單直接複用同一套模式，之後如果要做 Tag 管理頁面，也建議延續。
-- **時區處理目前是刻意簡化**：所有「今天/本週/本月」這類日期範圍計算，全部用瀏覽器本地時區（`new Date()` + `.toISOString()`），因為 Settings/timezone（第 12 項）還沒做、`User.TimeZoneId` 目前對誰都是同一個寫死的預設值。**這個簡化目前套用在 Dashboard 計時器與 History List 兩處**，等第 12 項做完時需要一併重新檢視這兩處。
+- **時區處理目前仍是刻意簡化，尚未完全收尾**：Settings/timezone（第 12 項）已完成，使用者可以在 `/Settings` 選擇並持久化自己的 `User.TimeZoneId`，`TimeAggregationService`（第 9 項）也已能用這個設定正確計算日期範圍。但 **Dashboard 計時器與 History List 這兩處的「今天/本週/本月」日期範圍計算，目前仍是各自用瀏覽器本地時區（`new Date()` + `.toISOString()`），還沒有改成呼叫 `TimeAggregationService`/讀取使用者設定的時區**——這是刻意留給 Dashboard/Report 串接 `TimeAggregationService`（下一步優先順序第 1、2 項）時一併處理，避免這次改動範圍超出設計文件。
 - Dashboard 的統計卡片/圖表（`dashboard.js` + `dashboard-state.mjs`）**刻意維持 mock data**，跟已經是真資料的計時器/History 明確切開，避免真假資料混在一起造成誤導。串接真實統計是 `TimeAggregationService`/`DashboardService`（第 9、10 項）的責任，不要在做其他功能時順手把 mock 資料跟真實資料摻在一起。
 
 ---
@@ -105,9 +119,9 @@
 
 ## 開始接手前建議的檢查清單
 
-1. `git log --oneline -5` 確認目前在 Category/Tag 管理功能完成之後（若使用者又做了其他修改，先弄清楚差異）。
+1. `git log --oneline -5` 確認目前在 Timezone settings/TimeAggregationService 完成之後（若使用者又做了其他修改，先弄清楚差異）。
 2. 讀 `AGENTS.md` 全文一次（規則沒有變過，但務必自己確認，不要只信這份摘要）。
 3. 讀 `Docs/TODO.md` 確認目前狀態（這份文件比本摘要新，衝突時以 `TODO.md` 為準）。
-4. 依使用者這次想做的項目，讀對應的 `Docs/*.md` 設計文件（`JWT.md`／`RateLimitingAndAuthLogging.md`／`RunningTimerStartStop.md`／`TimeEntryCrud.md`／`superpowers/specs/2026-09-17-category-tag-management-design.md`）取得可重用的既有模式與已知的取捨/限制。
-5. 動工前先 `dotnet build "Lyubishchev Time Management.csproj"` 一次確認目前基準是綠的，再依序跑三個測試專案確認 12/7/16 全過，作為「改動前」的基準線。
-6. 做完之後：更新 `Docs/TODO.md`、視情況新增一份 `Docs/<功能名稱>.md`（比照既有四份的格式：設計思路 → 整體流程 → 檔案清單與內容 → 尚未涵蓋的部分），並在自動化測試全過之後，額外跑一次真實伺服器手動驗證再回報完成。
+4. 依使用者這次想做的項目，讀對應的 `Docs/*.md` 設計文件（`JWT.md`／`RateLimitingAndAuthLogging.md`／`RunningTimerStartStop.md`／`TimeEntryCrud.md`／`superpowers/specs/2026-09-17-category-tag-management-design.md`／[`TimezoneAndAggregation.md`](TimezoneAndAggregation.md)）取得可重用的既有模式與已知的取捨/限制。
+5. 動工前先 `dotnet build "Lyubishchev Time Management.csproj"` 一次確認目前基準是綠的，再依序跑三個測試專案（`AuthFlow.Tests` 12 個、`TimerFlow.Tests` 7 個、`TimeEntryFlow.Tests` 70 個，最後這個數字最容易隨新功能成長，實際跑一次以現況為準）確認全過，作為「改動前」的基準線。
+6. 做完之後：更新 `Docs/TODO.md`、視情況新增一份 `Docs/<功能名稱>.md`（比照既有文件的格式：設計思路 → 整體流程 → 檔案清單與內容 → 尚未涵蓋的部分），並在自動化測試全過之後，額外跑一次真實伺服器手動驗證再回報完成。
