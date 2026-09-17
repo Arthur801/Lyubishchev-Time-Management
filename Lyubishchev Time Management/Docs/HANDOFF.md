@@ -33,13 +33,13 @@
 | 13 | CSV export | ✅ 完成，`GET /api/time-entries/export` 不分頁輸出目前 History 篩選值命中的全部 TimeEntry，UTF-8 BOM RFC 4180、帳號時區顯示、時長不受 DST 影響 | [`Docs/CsvExport.md`](CsvExport.md) |
 | 14 | RWD | ✅ 完成，共用 `_MobileNavigation.cshtml` + 原生 `<dialog>` More sheet，Category/Tag/Settings 首次有行動底部導覽，`dashboard.css` 統一 shell 層 44px 觸控目標/安全區/`prefers-reduced-motion`；**視覺驗證已補上**（headless Chrome CDP 截圖，320×568/375×667/768×1024/1024×768 四組視窗，沒有發現視覺缺陷） | [`Docs/Rwd.md`](Rwd.md) |
 | 15 | Error handling / Logging / Rate limit | ✅ 完成，`GlobalExceptionHandler`（`IExceptionHandler`）統一處理未預期例外（`/api/*` 安全 JSON、其餘安全 HTML，皆帶 `traceId`），`IOperationalEventLogger` 記錄 Timer/CSV 非預期失敗的安全 metadata；Rate limiting 與 CSRF 沿用既有實作 | [`Docs/ErrorHandlingAndLogging.md`](ErrorHandlingAndLogging.md) |
-| 16 | Nginx / EC2 / Backup | ❌ 未開始 | — |
+| 16 | Nginx / EC2 / Backup | 🟡 實際部署（AWS/SSH 操作）尚未開始，但有一份完整手冊；該手冊要求的唯一程式碼先決條件（`ForwardedHeadersOptions`）已完成 | [`Docs/Deploy_EC2.md`](Deploy_EC2.md) |
 
-**AGENTS.md Implementation Order 第 1–15 項已全數完成**，只剩第 16（部署）。
+**AGENTS.md Implementation Order 第 1–15 項已全數完成**；第 16 項的程式碼部分已完成，剩下的是實際 AWS 操作。
 
 **建議下一步優先順序**（`Docs/TODO.md` 目前寫的）：
 1. RWD 視覺驗收矩陣裡剩 200% 瀏覽器縮放、鍵盤 Tab 順序、螢幕閱讀器 focus 走向這幾項還沒測——這些是截圖驗證看不出來的，需要真人操作瀏覽器才能補
-2. 第 16 項（Nginx / EC2 / Backup）部署階段尚未開始
+2. 第 16 項：照 `Docs/Deploy_EC2.md` 實際在 AWS 上操作（申請 EC2、DNS、跑過一次完整部署），這部分不是程式碼工作，我做不了
 
 ---
 
@@ -192,6 +192,7 @@
 2. **只靠 SQLite/InMemory 測試不代表真的沒 bug**：`TimeEntryService.UpdateAsync` 有個真實的 `NullReferenceException`（漏了 `.ThenInclude(link => link.Tag)`），SQLite 測試因為在同一個 `DbContext` 裡先 `Create` 再 `Update`、EF 的追蹤器 identity-fixup 意外把缺漏蓋過去而完全沒抓到，直到啟動真正的開發伺服器、用 `curl` 跑一次「註冊 → 建立 → 部分更新（PATCH 不帶 tags）」的完整流程才炸出來。**教訓：寫牽涉到「跨請求讀取關聯資料」的測試時，要故意用兩個獨立的 `DbContext` 實例（一個建立、一個之後操作）模擬真實的 per-request scope，不要因為測試方便就共用同一個 `DbContext`**（`TimeEntryFlow.Tests` 裡 `UpdateAsync_omitting_tags_leaves_existing_tags_untouched` 已經改成這樣寫，可以當範本）。**如果之後要做有實質風險的新功能，建議在自動化測試都過了之後，額外啟動一次本機開發伺服器（`dotnet run --no-build`，記得先確認沒有舊的 dotnet process 佔用同個 port/鎖住 build 輸出）用 `curl` 跑一次端到端流程再收工**——這個 session 兩次都是靠這一步抓到真正的生產環境 bug。
 3. **（後續 session 追加）MySQL `DATETIME` 不記錄時區，EF Core 讀回的 `DateTime.Kind` 會變成 `Unspecified`，導致 JSON 序列化漏掉 `Z` 尾碼、前端所有 `new Date(...)` 都會誤判成瀏覽器本地時間**：使用者人工測試回報「TimeEntry 用 UTC+8 時間建立，History List 卻顯示成 UTC」。追下去發現這不是單純的前端時區換算問題——`GET /api/time-entries`、`GET /api/dashboard` 回傳的 `startTimeUtc`/`endTimeUtc` 字串本身就沒有 `Z`（例如 `"2026-09-17T06:00:00"`），用 `curl` 直接打 API 就能重現（SQLite/InMemory 測試完全測不出來，因為 SQLite provider 會把 `DateTimeKind` 正確序列化進 ISO 字串再讀回來，只有真正的 MySQL 才會遺失）。**修正方式**：`Data/AppDbContext.cs` 覆寫 `ConfigureConventions`，對所有 `DateTime` 屬性套用新增的 `Data/UtcDateTimeConverter.cs`（讀取時強制 `DateTime.SpecifyKind(v, DateTimeKind.Utc)`），因為這個專案的每一個 `DateTime` 欄位依 `AGENTS.md` 規則本來就都是 UTC，全域套用是安全的。用 `curl` 重新驗證 MySQL 開發資料庫，確認 API 回應已經帶 `Z`。同時順手把 `wwwroot/js/time-entry.js`（History List 的快捷日期範圍、清單顯示時間、新增/編輯表單）從瀏覽器本地時區改成讀取帳號時區（`GET /api/settings/timezone` + 新增的純函式模組 `wwwroot/js/timezone.mjs`，含 Node 單元測試 `Tests/Unit/timezone.test.mjs`），對齊 Dashboard 既有的帳號時區顯示模式——這是這次 bug report 的第二層問題（第 12 項 Timezone settings 文件本來就記著這個已知缺口）。**這裡順手把 Timer 卡片（`timer.js`）也列進了「尚未改用帳號時區」的待辦清單，但那個假設沒有先查證程式碼——後續 session 已證實是誤判，見下面第 4 點。**
 4. **（後續 session 追加）「Timer 卡片仍用瀏覽器本地時區」是一個沒查證就寫進文件、又被後續幾輪更新照抄的錯誤結論**：使用者要求處理 `Docs/TODO.md` 裡這一項時，實際讀 `wwwroot/js/timer.js` 才發現它的即時顯示（`tick`/`formatClock`）從頭到尾只做「經過秒數」的算術（`Date.now() - startedAtUtc.getTime()`），從來沒有任何日曆日期/時區相關的計算可言——跟 `time-entry.js`（History List）當初的 bug 性質完全不同，過去的文件更新是看到 `timer.js` 裡也有 `new Date()`/`.toISOString()` 就直接套用同一個結論，沒有先確認那段程式碼實際在算什麼。**教訓：文件裡「還沒做」的待辦項目，接手前也要重新對照程式碼確認還成立，不能只信之前 session 寫的結論，尤其是被連續照抄好幾輪的項目。** 順手修好一個這次真正找到、性質完全不同的小 bug：`formatClock` 原本借道 `new Date(seconds*1000).toISOString().slice(11,19)` 換算 `HH:mm:ss`，計時器一旦連續跑滿 24 小時（`AGENTS.md` 明講長時數的 TimeEntry 是允許的）就會在 86400 秒整數處繞回 `00:00:00`。修正方式：抽成 `wwwroot/js/timer-state.mjs` 的純函式 `formatClock`，改用整數除法/取餘運算（不再經過 `Date`），新增 `Tests/Unit/timer-state.test.mjs`（含 86400 秒／90061 秒的迴歸測試）。已用 curl 對真正的開發伺服器跑過 start/status/stop 全流程確認 API 契約（`startedAtUtc` 帶 `Z`）沒有受影響。
+5. **（後續 session 追加）`Docs/Deploy_EC2.md` 已經存在一份完整的 EC2 部署手冊**（曾經一度被 `.gitignore` 意外排除，已有另一個 commit `548afdd` 修正並重新追蹤，目前是正常進版控的檔案，不需要特殊處理）。該手冊第 7 節明講「在首次正式發布前必須實作」一個 `ForwardedHeadersOptions` 修改（Nginx 同機反向代理只用 HTTP 跟 Kestrel 溝通，不做這個修改的話 `UseHttpsRedirection` 會把每個請求誤判成 HTTP 造成無限重導向，rate limiter 也只看得到 Nginx 自己的 loopback IP，形同沒有真正限流）。已在 `Program.cs` 加上（`builder.Services.Configure<ForwardedHeadersOptions>` 只信任 `IPAddress.Loopback`/`IPv6Loopback` + `app.UseForwardedHeaders()` 放在管線最前面，`UseExceptionHandler` 之前），並用帶 `X-Forwarded-For`/`X-Forwarded-Proto` 標頭的 curl 請求驗證過（登入失敗記錄的 `IpAddress` 正確變成標頭裡的位址而不是 loopback）。四個測試專案（138 個測試）全過。**這是目前唯一完成的部署相關工作，實際 AWS 操作（申請 EC2、Security Group、DNS、跑過一次 `Docs/Deploy_EC2.md` 的完整流程）還沒有人做過**，下一位接手者如果要處理第 16 項，直接照那份手冊走即可，不需要重新設計。
 
 ---
 

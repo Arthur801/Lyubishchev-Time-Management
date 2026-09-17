@@ -109,7 +109,8 @@
 - [x] CSRF/Antiforgery 已設定（header-based，`Account` 的 Login/Register/Logout 已套用 `[ValidateAntiForgeryToken]`），其餘未來的狀態變更 API 仍需比照套用
 
 ## 16. Nginx / EC2 / Backup
-- [ ] 尚未開始（部署階段，預期在專案後期處理）
+- [~] 部署階段本身（實際 AWS 主控台/SSH 操作）尚未開始，但寫好了一份完整的 EC2 部署手冊（[`Docs/Deploy_EC2.md`](Deploy_EC2.md)，內容含安全群組/UFW/systemd/Nginx+Certbot/S3 每日備份/上線驗收清單）
+- [x] 該手冊要求的唯一程式碼先決條件已完成：`Program.cs` 新增 `ForwardedHeadersOptions`（只信任 loopback）+ `app.UseForwardedHeaders()`，放在管線最前面（`UseExceptionHandler` 之前），讓 Nginx 反向代理後 `UseHttpsRedirection` 不會誤判成 HTTP 迴圈、rate limiter 也能看到真實用戶端 IP 而不是 Nginx 自己的 loopback。本機已用帶 `X-Forwarded-For`/`X-Forwarded-Proto` 的請求手動驗證（登入失敗記錄的 `IpAddress` 正確變成標頭裡的位址），四個測試專案（138 個測試）全過
 
 ---
 
@@ -149,7 +150,9 @@
 - **釐清「Timer 卡片時區」的既有 TODO 項目其實是誤判**：`timer.js` 的即時顯示只算經過秒數，跟日曆日期/帳號時區無關，過去文件把它跟 History List 的時區 bug 混為一談。順手修好一個真的存在、跟這次調查相關的小 bug：`formatClock` 借道 `Date`/`toISOString` 換算，計時超過 24 小時會繞回 `00:00:00`；已抽成 `wwwroot/js/timer-state.mjs` 改用純整數運算修正，新增 `Tests/Unit/timer-state.test.mjs`。
 - RWD 切版（第 14 項）：三種版面帶（桌面固定側欄／平板窄桌面／手機，皆以 720px、900px 為門檻，沿用既有 `dashboard.css` 斷點，不新增第四種）、共用的 `_MobileNavigation.cshtml` 局部檢視 + `mobile-navigation.mjs`/`.js` 讓 Category/Tag/Settings 首次擁有行動裝置底部導覽（先前是死路）、原生 `<dialog>` 實作的「更多」底部彈出選單（無 polyfill、無第三方選單套件）、`dashboard.css` 統一 shell 規則（44px 觸控目標、安全區留白、`prefers-reduced-motion`）、順手修正 Settings 頁面「儲存」按鈕因未載入 `category-tag.css` 而完全無樣式的既有問題，詳見 [`Docs/Rwd.md`](Rwd.md)
 - 全域例外處理與操作事件記錄（第 15 項）：`Infrastructure/Errors/GlobalExceptionHandler.cs`（`IExceptionHandler`，`/api/*` 回安全 Problem Details、其餘路徑安全渲染 `/Home/Error`，同一個 `traceId` 貫穿回應與 Console/journal log，所有環境行為一致）+ `IOperationalEventLogger`（Timer/CSV 非預期失敗的安全 metadata），過程中抓到兩個 framework 地雷：`ExceptionHandlerOptions.ExceptionHandlingPath` 會在呼叫自訂 handler *之前* 就先改寫 `HttpContext.Request.Path`（要改讀 `IExceptionHandlerPathFeature.Path` 才拿得到原始路徑）、Console formatter 預設不渲染 `Dictionary` 形式的 log scope（要改用 message-template scope）。新增 `Tests/WebFlow.Tests`（`WebApplicationFactory<Program>` + SQLite，9 個測試）。詳見 [`Docs/ErrorHandlingAndLogging.md`](ErrorHandlingAndLogging.md)
+- 全面性設計符合度審查（比對全部 `Docs/*.md` 與 `AGENTS.md`）：只找到一個真的程式碼問題並修好——`TimeEntryApiController.List`/`.Export` 沒檢查 `ModelState`，格式錯誤的 `startUtc`/`endUtc` 查詢字串會被靜默當成「無範圍」而不是回 400；已補上 `ModelState.IsValid` 檢查（比照同 controller 的 `Create`/`Update`）與兩個回歸測試。另外修正了幾份因為後續 session 陸續完成功能而過時的文件（`RunningTimerStartStop.md`/`RateLimitingAndAuthLogging.md`/`TimeEntryCrud.md`/`Dashboard.md`），其餘功能（Auth/Category/Tag/Timezone/Dashboard/Report/Calendar/CSV export/RWD）皆符合設計文件與 `AGENTS.md`。
+- 部署先決條件：`Program.cs` 新增 `ForwardedHeadersOptions`（只信任 loopback）+ `app.UseForwardedHeaders()`（管線最前面），滿足 `Docs/Deploy_EC2.md` 第 7 節「在首次正式發布前必須實作」的要求——沒有這個修改，Nginx 反向代理後 `UseHttpsRedirection` 會誤判成 HTTP 造成無限重導向、rate limiter 也只會看到 Nginx 自己的 loopback IP。本機已用帶 `X-Forwarded-For`/`X-Forwarded-Proto` 的請求驗證過。
 
 ## 下一步建議優先順序
 1. 200% 瀏覽器縮放、鍵盤 Tab 順序、螢幕閱讀器 focus 走向這幾項 RWD 驗收矩陣要求的細節，截圖驗證看不出來，需要真人操作瀏覽器才能補（見 [`Docs/Rwd.md`](Rwd.md) 的「尚未涵蓋的部分」）
-2. AGENTS.md Implementation Order 的第 1–15 項已全數完成，只剩第 16（Nginx/EC2/Backup 部署）
+2. AGENTS.md Implementation Order 的第 1–15 項已全數完成；第 16 項（Nginx/EC2/Backup）的唯一程式碼先決條件已完成，剩下的是實際在 AWS 上操作（申請主機、DNS、跑 `Docs/Deploy_EC2.md` 的步驟），不是程式碼工作

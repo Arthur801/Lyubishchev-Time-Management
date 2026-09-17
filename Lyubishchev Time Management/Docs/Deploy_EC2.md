@@ -123,11 +123,11 @@ mysql -u ltm_app -p -h 127.0.0.1 lyubishchev_time_management -e 'SELECT 1;'
 
 第一個指令只能顯示 `127.0.0.1:3306`（或 `localhost`），不能是 `0.0.0.0:3306` 或公網 IP。
 
-## 7. 修正反向代理必要程式設定
+## 7. 修正反向代理必要程式設定（已完成）
 
-目前 `Program.cs` 已使用 `UseHttpsRedirection()`，但尚未處理 Nginx 傳來的 `X-Forwarded-Proto`。若直接以 HTTP 反向代理到 Kestrel，應用程式會把每個請求誤判為 HTTP，造成 HTTPS redirect loop；rate limiter 也會只看到 Nginx 的 loopback IP。
+`Program.cs` 已使用 `UseHttpsRedirection()`，原本尚未處理 Nginx 傳來的 `X-Forwarded-Proto`。若直接以 HTTP 反向代理到 Kestrel，應用程式會把每個請求誤判為 HTTP，造成 HTTPS redirect loop；rate limiter 也會只看到 Nginx 的 loopback IP。
 
-**在首次正式發布前必須實作、測試並合併以下修改。** 這是部署先決條件，而不是在主機上臨時修改：
+**這項修改已經實作並合併**（`Program.cs`：`builder.Services.Configure<ForwardedHeadersOptions>(...)` + `app.UseForwardedHeaders()`，只信任 loopback 作為 forwarder），本機已手動驗證：帶 `X-Forwarded-For`/`X-Forwarded-Proto` 的請求會正確覆寫 `HttpContext.Connection.RemoteIpAddress`（登入失敗記錄的 `IpAddress` 確認變成標頭裡的位址，而不是 loopback），沒有 HTTPS redirect loop。以下保留原始程式碼供對照，不需要再手動加入：
 
 ```csharp
 using System.Net;
@@ -147,12 +147,13 @@ app.UseForwardedHeaders();
 
 Nginx 與 Kestrel 同機且 Kestrel 只聆聽 loopback，因此只信任 `127.0.0.1` 與 `::1` 是正確的最小信任範圍。不得為了方便清空 `KnownProxies`／`KnownNetworks`，否則客戶端能偽造來源 IP 與 HTTPS 狀態。
 
-在開發機完成修改後，至少執行：
+每次發布前，在開發機（或 CI）至少執行（`WebFlow.Tests` 是第 15 項新增的第四個測試專案，包含全域例外處理與速率限制的整合測試）：
 
 ```powershell
 dotnet test '.\Lyubishchev Time Management\Tests\AuthFlow.Tests\AuthFlow.Tests.csproj'
 dotnet test '.\Lyubishchev Time Management\Tests\TimerFlow.Tests\TimerFlow.Tests.csproj'
 dotnet test '.\Lyubishchev Time Management\Tests\TimeEntryFlow.Tests\TimeEntryFlow.Tests.csproj'
+dotnet test '.\Lyubishchev Time Management\Tests\WebFlow.Tests\WebFlow.Tests.csproj'
 dotnet publish '.\Lyubishchev Time Management\Lyubishchev Time Management.csproj' -c Release -o .\artifacts\ltm
 ```
 
@@ -371,7 +372,7 @@ gzip -dc /tmp/restore.sql.gz | mysql -u root -p ltm_restore
 
 每次發布順序：
 
-1. 本機／CI 執行所有三個 test project，並產出 `dotnet publish -c Release` artifact。
+1. 本機／CI 執行所有四個 test project（`AuthFlow.Tests`/`TimerFlow.Tests`/`TimeEntryFlow.Tests`/`WebFlow.Tests`），並產出 `dotnet publish -c Release` artifact。
 2. 先執行手動 MySQL 備份，將 artifact 上傳到新 `RELEASE_ID` 目錄。
 3. 審閱 migration；套用成功後才以 `ln -sfn` 切換 `/srv/ltm/app/current`。
 4. `sudo systemctl restart ltm`，驗證第 14 節；保留上一個 release 目錄直到新版本穩定。

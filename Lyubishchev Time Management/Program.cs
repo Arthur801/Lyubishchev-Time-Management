@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using System.Threading.RateLimiting;
 using Lyubishchev_Time_Management.Data;
@@ -9,6 +10,7 @@ using Lyubishchev_Time_Management.Security;
 using Lyubishchev_Time_Management.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MySql.EntityFrameworkCore.Extensions;
@@ -22,6 +24,18 @@ builder.Logging.AddSimpleConsole(options => options.IncludeScopes = true);
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
+
+// Deployment (Docs/Deploy_EC2.md) puts Kestrel behind Nginx on the same host, reachable only via
+// X-Forwarded-For/X-Forwarded-Proto. Without this, the app would see every request as plain HTTP
+// from Nginx's own loopback address: UseHttpsRedirection would loop forever, and the rate limiter
+// would partition all clients under one IP. Only loopback is trusted as a forwarder -- widening
+// this (e.g. clearing KnownProxies) would let a client spoof its own source IP/HTTPS status.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownProxies.Add(IPAddress.Loopback);
+    options.KnownProxies.Add(IPAddress.IPv6Loopback);
+});
 
 if (builder.Environment.IsEnvironment("Testing"))
 {
@@ -149,10 +163,14 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline. The global handler runs before everything else so it can
-// catch failures from any later stage; it never leaks exception text, stack traces, or dev-only
-// diagnostics into a response -- that's why it runs the same way in every environment instead of
-// only outside Development.
+// Configure the HTTP request pipeline. Forwarded headers are applied first, before anything else
+// reads the request scheme or client IP (UseHttpsRedirection, the rate limiter's IP partition
+// key, etc.) -- this is Microsoft's own documented ordering requirement for this middleware.
+app.UseForwardedHeaders();
+
+// The global handler runs next so it can catch failures from any later stage; it never leaks
+// exception text, stack traces, or dev-only diagnostics into a response -- that's why it runs the
+// same way in every environment instead of only outside Development.
 app.UseExceptionHandler(new ExceptionHandlerOptions { ExceptionHandlingPath = "/Home/Error" });
 
 if (!app.Environment.IsDevelopment())
