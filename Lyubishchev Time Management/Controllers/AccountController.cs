@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace Lyubishchev_Time_Management.Controllers;
 
-public sealed class AccountController(AuthService authService) : Controller
+public sealed class AccountController(AuthService authService, IConfiguration configuration) : Controller
 {
     [HttpGet]
     public IActionResult Login()
@@ -77,7 +77,7 @@ public sealed class AccountController(AuthService authService) : Controller
         Response.Cookies.Append(AuthConstants.CookieName, token, new CookieOptions
         {
             HttpOnly = true,
-            Secure = true,
+            Secure = !configuration.GetValue<bool>("Demo:AllowInsecureHttp"),
             SameSite = SameSiteMode.Strict,
             Expires = DateTimeOffset.UtcNow.AddHours(AuthConstants.CookieExpirationHours),
         });

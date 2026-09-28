@@ -16,6 +16,7 @@ using Microsoft.IdentityModel.Tokens;
 using MySql.EntityFrameworkCore.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
+var allowInsecureHttp = builder.Configuration.GetValue<bool>("Demo:AllowInsecureHttp");
 
 // Surfaces GlobalExceptionHandler's TraceId/RequestMethod/RequestPath scope in Console/systemd
 // journal output; the default simple console formatter otherwise discards ILogger scopes.
@@ -81,6 +82,14 @@ builder.Services.AddScoped<UserSettingsService>();
 builder.Services.AddScoped<TimeAggregationService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<ReportService>();
+builder.Services.Configure<AiTrendAnalysisOptions>(builder.Configuration.GetSection(AiTrendAnalysisOptions.SectionName));
+builder.Services.AddHttpClient<TrendAnalysisClient>((serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AiTrendAnalysisOptions>>().Value;
+    client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
+    client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.RequestTimeoutSeconds, 1, 60));
+});
+builder.Services.AddScoped<TrendAnalysisService>();
 builder.Services.AddScoped<CsvExportService>();
 builder.Services.AddScoped<IOperationalEventLogger, OperationalEventLogger>();
 
@@ -101,6 +110,16 @@ builder.Services.AddRateLimiter(options =>
             {
                 PermitLimit = 10,
                 Window = TimeSpan.FromMinutes(5),
+                QueueLimit = 0,
+            }));
+
+    options.AddPolicy(RateLimiterPolicies.AiTrendAnalysis, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.FindFirst("sub")?.Value ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 1,
+                Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0,
             }));
 
@@ -173,13 +192,16 @@ app.UseForwardedHeaders();
 // same way in every environment instead of only outside Development.
 app.UseExceptionHandler(new ExceptionHandlerOptions { ExceptionHandlingPath = "/Home/Error" });
 
-if (!app.Environment.IsDevelopment())
+if (!allowInsecureHttp && !app.Environment.IsDevelopment())
 {
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+if (!allowInsecureHttp)
+{
+    app.UseHttpsRedirection();
+}
 app.UseRouting();
 
 app.UseRateLimiter();

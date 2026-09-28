@@ -13,8 +13,12 @@
 .env
 .env.*
 !.env.example
+.venv/
+__pycache__/
+*.pyc
 appsettings.Local.json
 appsettings.*.Local.json
 
 # Logs
 *.log
+/wehelp_kaihong.pem

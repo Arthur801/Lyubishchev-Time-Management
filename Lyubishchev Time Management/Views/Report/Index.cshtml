@@ -54,6 +54,19 @@
                 <div id="tag-chart" class="tag-chart" role="img" aria-label="標籤時間分布"></div>
             </article>
         </section>
+
+        <section class="dashboard-panel trend-analysis-panel" aria-labelledby="trend-analysis-heading">
+            <header>
+                <div>
+                    <p class="eyebrow">AI INSIGHT</p>
+                    <h2 id="trend-analysis-heading">時間趨勢分析</h2>
+                </div>
+                <button class="outline-button" id="analyze-trend" type="button">分析時間趨勢</button>
+            </header>
+            <p class="panel-note">分析僅使用目前區間的每日工時、分類與標籤彙總資料。</p>
+            <p class="form-message" id="trend-analysis-status" aria-live="polite"></p>
+            <div id="trend-analysis-result" hidden></div>
+        </section>
     </main>
 
     <partial name="_MobileNavigation" model="@("report")" />

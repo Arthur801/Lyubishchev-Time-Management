@@ -18,6 +18,27 @@ public sealed record TagReportResult(bool Succeeded, TagReportResponse? Response
     public static TagReportResult Fail(string errorCode, string errorMessage) => new(false, null, errorCode, errorMessage);
 }
 
+public sealed record TrendAnalysisInputResult(
+    bool Succeeded,
+    TrendAnalysisServiceRequest? Request,
+    DateOnly StartDate,
+    DateOnly EndDateInclusive,
+    string? TimeZoneId,
+    string? ErrorCode,
+    string? ErrorMessage)
+{
+    public static TrendAnalysisInputResult Ok(TrendAnalysisServiceRequest request) => new(
+        true,
+        request,
+        request.Range.StartDate,
+        request.Range.EndDateInclusive,
+        request.Range.TimeZoneId,
+        null,
+        null);
+
+    public static TrendAnalysisInputResult Fail(string errorCode, string errorMessage) => new(false, null, default, default, null, errorCode, errorMessage);
+}
+
 // ReportService only consumes TimeAggregationService's output for the resolved range -- it must
 // never recompute timezone conversion, interval intersection, or Category/Tag bucketing itself
 // (that logic lives once, shared with DashboardService).
@@ -60,6 +81,42 @@ public sealed class ReportService(AppDbContext dbContext, TimeAggregationService
             timeZoneId,
             aggregation.TotalSeconds,
             aggregation.TagTotals));
+    }
+
+    public async Task<TrendAnalysisInputResult> GetTrendAnalysisInputAsync(ulong userId, string? preset, DateOnly? startDate, DateOnly? endDate, CancellationToken cancellationToken)
+    {
+        var range = await ResolveRangeAsync(userId, preset, startDate, endDate, cancellationToken);
+        if (!range.Succeeded)
+        {
+            return TrendAnalysisInputResult.Fail(range.ErrorCode!, range.ErrorMessage!);
+        }
+
+        var localRange = range.Range!;
+        var calendarDayCount = localRange.EndDateInclusive.DayNumber - localRange.StartDate.DayNumber + 1;
+        if (calendarDayCount > 365)
+        {
+            return TrendAnalysisInputResult.Fail("AI_ANALYSIS_RANGE_TOO_LARGE", "時間趨勢分析最多支援 365 天的日期範圍。");
+        }
+
+        var aggregation = await aggregationService.AggregateAsync(userId, localRange, range.TimeZoneId!, cancellationToken);
+        var midpoint = localRange.StartDate.AddDays((localRange.EndDateInclusive.DayNumber - localRange.StartDate.DayNumber + 1) / 2);
+        var firstHalfSeconds = aggregation.DailyTotals.Where(d => d.Date < midpoint).Sum(d => d.DurationSeconds);
+        var secondHalfSeconds = aggregation.DailyTotals.Where(d => d.Date >= midpoint).Sum(d => d.DurationSeconds);
+        var trackedDayCount = aggregation.DailyTotals.Count(d => d.DurationSeconds > 0);
+
+        var request = new TrendAnalysisServiceRequest(
+            new TrendAnalysisRange(localRange.StartDate, localRange.EndDateInclusive, range.TimeZoneId!),
+            aggregation.DailyTotals,
+            aggregation.CategoryTotals.Take(10).Select(x => new TrendNamedTotal(x.Name, x.DurationSeconds)).ToList(),
+            aggregation.TagTotals.Take(10).Select(x => new TrendNamedTotal(x.Name, x.DurationSeconds)).ToList(),
+            new TrendDerivedMetrics(
+                aggregation.TotalSeconds,
+                trackedDayCount,
+                calendarDayCount,
+                trackedDayCount == 0 ? 0 : aggregation.TotalSeconds / trackedDayCount,
+                firstHalfSeconds,
+                secondHalfSeconds));
+        return TrendAnalysisInputResult.Ok(request);
     }
 
     private readonly record struct RangeResolution(bool Succeeded, LocalDateRange? Range, string? TimeZoneId, string? ErrorCode, string? ErrorMessage)

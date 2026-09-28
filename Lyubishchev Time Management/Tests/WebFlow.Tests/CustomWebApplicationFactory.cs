@@ -19,12 +19,19 @@ namespace WebFlow.Tests;
 public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly string _connectionString = $"Data Source=file:{Guid.NewGuid():N}?mode=memory&cache=shared;Default Timeout=5";
+    private readonly bool _allowInsecureHttp;
     private SqliteConnection? _keepAlive;
 
     public CapturingLoggerProvider Logs { get; } = new();
 
     public CustomWebApplicationFactory()
+        : this(allowInsecureHttp: false)
     {
+    }
+
+    internal CustomWebApplicationFactory(bool allowInsecureHttp)
+    {
+        _allowInsecureHttp = allowInsecureHttp;
         // WebApplication.CreateBuilder(args) inside Program.cs reads environment variables as
         // part of its own default configuration sources -- unlike ConfigureWebHost's
         // ConfigureAppConfiguration hook, which composes too late to satisfy Program.cs's own
@@ -35,6 +42,7 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable("Jwt__Issuer", "WebFlowTestsIssuer");
         Environment.SetEnvironmentVariable("Jwt__Audience", "WebFlowTestsAudience");
         Environment.SetEnvironmentVariable("Jwt__SigningKey", "webflow-tests-signing-key-needs-at-least-32-bytes!!");
+        Environment.SetEnvironmentVariable("Demo__AllowInsecureHttp", _allowInsecureHttp ? "true" : "false");
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

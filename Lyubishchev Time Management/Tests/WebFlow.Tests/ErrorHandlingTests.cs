@@ -52,6 +52,34 @@ public sealed class ErrorHandlingTests(CustomWebApplicationFactory factory) : IC
         return client;
     }
 
+    [Fact]
+    public async Task Insecure_http_demo_mode_does_not_redirect_and_sets_a_non_secure_auth_cookie()
+    {
+        await using var insecureFactory = new CustomWebApplicationFactory(allowInsecureHttp: true);
+        await insecureFactory.InitializeAsync();
+        var client = insecureFactory.CreateClient();
+
+        var registerPage = await client.GetAsync("/Account/Register");
+        Assert.Equal(HttpStatusCode.OK, registerPage.StatusCode);
+
+        var csrf = await GetCsrfTokenAsync(client, "/Account/Register");
+        var request = new HttpRequestMessage(HttpMethod.Post, "/Account/Register")
+        {
+            Content = JsonContent.Create(new
+            {
+                email = $"http_demo_{Guid.NewGuid():N}@example.com",
+                password = "P@ssword123!",
+                confirmPassword = "P@ssword123!",
+            }),
+        };
+        request.Headers.Add("X-CSRF-TOKEN", csrf);
+
+        var response = await client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        var setCookie = Assert.Single(response.Headers.GetValues("Set-Cookie"));
+        Assert.DoesNotContain("secure", setCookie, StringComparison.OrdinalIgnoreCase);
+    }
+
     // ----- Task 1: global exception handler contract -----
 
     [Fact]
