@@ -1,15 +1,17 @@
-import json
+import json  # noqa: I001
+import logging
 import os
 from enum import Enum
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 
 MAX_DAYS = 365
 MAX_TOTALS = 10
+logger = logging.getLogger(__name__)
 SYSTEM_INSTRUCTIONS = """You analyze a user's time-tracking aggregates.
 Return Traditional Chinese only. Use only facts contained in the supplied JSON.
 Do not infer motives, causality, work quality, personality, health, or events not present.
@@ -24,6 +26,7 @@ OPENAI_RESPONSE_SCHEMA = {
         "summary": {"type": "string"},
         "observations": {
             "type": "array",
+            "maxItems": 3,
             "items": {
                 "type": "object",
                 "properties": {"claim": {"type": "string"}, "evidence": {"type": "string"}},
@@ -31,7 +34,7 @@ OPENAI_RESPONSE_SCHEMA = {
                 "additionalProperties": False,
             },
         },
-        "suggestions": {"type": "array", "items": {"type": "string"}},
+        "suggestions": {"type": "array", "maxItems": 2, "items": {"type": "string"}},
         "disclaimer": {"type": "string"},
     },
     "required": ["dataSufficiency", "summary", "observations", "suggestions", "disclaimer"],
@@ -138,10 +141,16 @@ def analyze_time_trend(payload: TrendAnalysisInput, _: None = Depends(require_in
                 }
             },
         )
+        if response.status != "completed" or not response.output_text:
+            logger.warning("OpenAI trend analysis did not complete. status=%s", response.status)
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="AI analysis did not complete.")
         return TrendAnalysis.model_validate_json(response.output_text)
     except APITimeoutError as exc:
         raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="AI analysis timed out.") from exc
     except (APIConnectionError, APIStatusError) as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI analysis is unavailable.") from exc
-    except ValueError as exc:
+    except ValidationError as exc:
+        # Log only error categories, never the model response or the user's aggregate data.
+        error_types = [error["type"] for error in exc.errors()]
+        logger.warning("OpenAI trend analysis failed response validation. error_types=%s", error_types)
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="AI analysis returned an invalid response.") from exc

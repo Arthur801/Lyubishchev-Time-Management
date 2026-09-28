@@ -74,6 +74,7 @@ class TrendAnalysisServiceTests(unittest.TestCase):
     @patch("app.main.OpenAI")
     def test_successful_structured_output_is_validated_and_returned(self, openai: Mock) -> None:
         response = Mock()
+        response.status = "completed"
         response.output_text = json.dumps(
             {
                 "dataSufficiency": "limited",
@@ -99,6 +100,8 @@ class TrendAnalysisServiceTests(unittest.TestCase):
         request = openai.return_value.responses.create.call_args.kwargs
         self.assertFalse(request["store"])
         self.assertEqual("json_schema", request["text"]["format"]["type"])
+        self.assertEqual(3, request["text"]["format"]["schema"]["properties"]["observations"]["maxItems"])
+        self.assertEqual(2, request["text"]["format"]["schema"]["properties"]["suggestions"]["maxItems"])
 
 
 if __name__ == "__main__":
